@@ -1,0 +1,1 @@
+import{a as n}from"./chunk-3NFFFUWN.js";import{cc as r}from"./chunk-PW5HOQBC.js";var s=n.apiBaseUrl;function p(o={}){let e=new r;for(let[a,t]of Object.entries(o))t!=null&&t!==""&&(e=e.set(a,String(t)));return e}export{s as a,p as b};

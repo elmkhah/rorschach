@@ -1,0 +1,1 @@
+import"./chunk-4CLCTAJ7.js";var t=e=>e.canLeave();var o=[{path:":sessionId",title:"\u0622\u0632\u0645\u0648\u0646 \u0631\u0648\u0631\u0634\u0627\u062E",canDeactivate:[t],loadComponent:()=>import("./chunk-73BBGQHT.js").then(e=>e.AssessmentRunnerPage)},{path:"",pathMatch:"full",redirectTo:"/patient/assessments"}];export{o as ASSESSMENT_ROUTES};

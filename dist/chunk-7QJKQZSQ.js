@@ -1,0 +1,1 @@
+import"./chunk-4CLCTAJ7.js";var o=[{path:"",title:"\u06AF\u0641\u062A\u200C\u0648\u06AF\u0648",loadComponent:()=>import("./chunk-4YDWTAAW.js").then(t=>t.ChatPage)},{path:":conversationId",title:"\u06AF\u0641\u062A\u200C\u0648\u06AF\u0648",loadComponent:()=>import("./chunk-4YDWTAAW.js").then(t=>t.ChatPage)}];export{o as CHAT_ROUTES};
