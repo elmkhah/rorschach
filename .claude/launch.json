@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rorschach",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "Rorschach", "run", "start", "--", "--host", "127.0.0.1", "--port", "4200"],
+      "port": 4200,
+      "url": "http://127.0.0.1:4200"
+    }
+  ]
+}

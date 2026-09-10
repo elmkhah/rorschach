@@ -1,0 +1,220 @@
+{
+  "main": {
+    "id": "55d7806e7d7987d5",
+    "type": "split",
+    "children": [
+      {
+        "id": "72e8cc735f0a27df",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8cbed3c899a76c33",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/09-Roreshach-analysis.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "09-Roreshach-analysis"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2fa4de14228b8f12",
+    "type": "split",
+    "children": [
+      {
+        "id": "30327d564bf5159f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "67cea3dea4d8019e",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "c06c4f9d56feb6eb",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "c8b8f5c649332730",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 236.70001220703125
+  },
+  "right": {
+    "id": "82e8e571896033d7",
+    "type": "split",
+    "children": [
+      {
+        "id": "2f39e385c08dfbeb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "75b8c14f42e919f1",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/index.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "f4c72311f664c761",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/index.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "c931086d6f984602",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "87f1a82be9e22f48",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "7d5ec1b936cedb7c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/index.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "8cbed3c899a76c33",
+  "lastOpenFiles": [
+    "docs/00-overview.md",
+    "docs/09-Roreshach-analysis.md",
+    "docs/01-requirements.md",
+    "docs/07-deployment-operations.md",
+    "docs/02-architecture.md",
+    "docs/03-data-model-er.md",
+    "docs/02-architecture.md.tmp.11732.1a9086d8595b",
+    "docs/06-development-guide.md",
+    "docs/04-api-design.md",
+    "docs/07-deployment-operations.md.tmp.11732.8d2f43087af8",
+    "docs/06-development-guide.md.tmp.11732.1146f6a6c50f",
+    "docs/05-sequence-diagrams.md.tmp.11732.5f75ab06b49e",
+    "docs/03-data-model-er.md.tmp.11732.36394aee08b6",
+    "docs/00-overview.md.tmp.11732.f7b64a849609",
+    "docs/00-index.md",
+    "docs/05-sequence-diagrams.md",
+    "06-frontend.md",
+    "docs/07-testing-and-project-plan.md",
+    "docs/05-api.md",
+    "Untitled",
+    "docs/04-assessment-engine.md",
+    "docs/03-domain-and-database.md",
+    "docs/01-vision-and-requirements.md",
+    "docs/04-domain-model.md",
+    "docs/05-database-design.md",
+    "docs/06-assessment-engine.md"
+  ]
+}
