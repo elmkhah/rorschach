@@ -11,6 +11,8 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from common.health import health
+
 api_v1 = [
     path("", include("apps.accounts.urls")),
     path("", include("apps.profiles.urls")),
@@ -23,6 +25,8 @@ api_v1 = [
 ]
 
 urlpatterns = [
+    # Infrastructure probe, outside the versioned API on purpose.
+    path("health/", health, name="health"),
     path("django-admin/", admin.site.urls),
     path("api/v1/", include((api_v1, "v1"))),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

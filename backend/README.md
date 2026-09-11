@@ -16,18 +16,28 @@ python manage.py seed_demo           # test accounts (DEBUG only), password Test
 python manage.py runserver 8000
 ```
 
-With Docker (PostgreSQL + Redis + Celery included):
+With Docker — the recommended path (PostgreSQL + Redis + Celery included):
 
 ```bash
-docker compose up -d                 # from the repository root
+docker compose up -d --build         # from the repository root
 ```
 
+The entrypoint waits for the database, migrates, seeds the test structure, and
+creates the demo accounts (`SEED_DEMO=true` by default). All of it is
+idempotent, so restarts are cheap. The Angular dev server stays outside Docker:
+`cd Rorschach && npm start` already proxies `/api` and `/ws` to `:8000`.
+
+The image installs no system packages — every dependency ships a manylinux
+wheel, so there is no compiler to fetch. On a host that cannot reach PyPI,
+build with `PIP_INDEX_URL=<mirror> docker compose build`.
+
+Health probe: <http://localhost:8000/health/>
 Interactive API docs: <http://localhost:8000/api/docs/>
 
 ## Checks
 
 ```bash
-python -m pytest          # 128 tests
+python -m pytest          # 129 tests
 python -m ruff check .
 ```
 

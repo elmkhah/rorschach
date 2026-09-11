@@ -31,7 +31,7 @@ related:
 | داده | PostgreSQL (JSONB برای داده‌ی پویا) — تست‌ها روی SQLite هم اجرا می‌شوند |
 | Cache / Queue / Realtime | Redis · Celery · Django Channels (ASGI) |
 | Storage | FileSystem در توسعه · S3-compatible در production |
-| کیفیت | pytest (۱۲۸ تست) · ruff |
+| کیفیت | pytest (۱۲۹ تست) · ruff |
 
 ```
 backend/
@@ -70,17 +70,45 @@ python manage.py seed_demo         # حساب‌های آزمایشی (فقط DE
 python manage.py runserver 8000
 ```
 
-یا با Docker (شامل PostgreSQL، Redis، Celery):
+**یا با Docker — روش پیشنهادی** (PostgreSQL، Redis، Django و Celery):
 
 ```bash
-docker compose up -d
+docker compose up -d --build      # از ریشه‌ی مخزن
+cd Rorschach && npm start          # فرانت‌اند روی :4200
 ```
 
-- مستندات تعاملی API: `http://localhost:8000/api/docs/`
+entrypoint خودش منتظر دیتابیس می‌ماند، migrate می‌کند، ساختار آزمون را می‌سازد و (با `SEED_DEMO=true` که پیش‌فرض است) حساب‌های آزمایشی را ایجاد می‌کند. هر سه دستور idempotent‌اند، پس restart بی‌خطر است.
+
+سرور Angular عمداً بیرون از Docker می‌ماند: watch کردن فایل‌ها از روی bind mount در ویندوز کند است و `npm start` از قبل به `:8000` پروکسی می‌کند.
+
+| دستور | کار |
+|---|---|
+| `docker compose logs -f backend` | لاگ زنده |
+| `docker compose exec backend python manage.py <cmd>` | اجرای دستور مدیریتی |
+| `docker compose down -v` | پاک‌کردن کامل داده و شروع از صفر |
+| `PIP_INDEX_URL=<mirror> docker compose build` | وقتی pypi.org در دسترس نیست |
+
+- سلامت سرویس: `http://localhost:8000/health/` — مستندات تعاملی API: `http://localhost:8000/api/docs/`
 - تست‌ها: `python -m pytest` — لینت: `python -m ruff check .`
-- حساب‌های `seed_demo` دقیقاً همان‌هایی‌اند که [[08-frontend-phase1]] §۵ می‌گوید (رمز `Test1234`): `patient@test.com` · `psych@test.com` · `pending@test.com` · `admin@test.com`
 
 > `seed_demo` علاوه بر حساب‌ها، یک پروتکل کامل و کدگذاری‌شده (۱۸ پاسخ) و یک آزمون نیمه‌تمام می‌سازد تا صفحات روان‌شناس از همان ابتدا داده داشته باشند.
+
+### حساب‌های آزمایشی
+
+رمز همه: **`Test1234`** — همان‌هایی که [[08-frontend-phase1]] §۵ می‌گوید.
+
+| ایمیل | نقش | وضعیت / کاربرد در تست |
+|---|---|---|
+| `patient@test.com` | مراجع — سارا محمدی | ارتباط فعال با مریم احمدی؛ **یک آزمون کامل و کدگذاری‌شده** دارد. یک درخواست PENDING هم به حسین کریمی |
+| `patient3@test.com` | مراجع — نرگس کاظمی | ارتباط فعال؛ **آزمون نیمه‌تمام روی کارت ۴** — برای تست ادامه‌ی آزمون پس از بستن مرورگر |
+| `patient2@test.com` | مراجع — علی رضایی | فقط یک درخواست PENDING — برای تست حالت «منتظر تأیید» |
+| `psych@test.com` | روان‌شناس — مریم احمدی | APPROVED، دو مراجع فعال، یک درخواست در انتظار، پروتکل کامل برای کدگذاری |
+| `psych2@test.com` | روان‌شناس — حسین کریمی | APPROVED، یک درخواست در انتظار تأیید |
+| `psych3@test.com` · `psych4@test.com` | روان‌شناس | APPROVED و بدون مراجع — برای تست جست‌وجو و درخواست جدید |
+| `pending@test.com` | روان‌شناس — امید نوری | **PENDING_VERIFICATION** — برای تست صفحه‌ی «در انتظار تأیید» و تأیید از پنل ادمین |
+| `admin@test.com` | مدیر | پنل ادمین، تأیید روان‌شناس، نسخه‌های آزمون، Audit Log |
+
+سناریوی پیشنهادی برای دیدن کل چرخه: با `admin@test.com` وارد شوید و `pending@test.com` را تأیید کنید → با `patient2@test.com` ببینید درخواستش در انتظار است → با `psych@test.com` تأییدش کنید → با `patient2@test.com` آزمون را از ابتدا اجرا کنید → دوباره با `psych@test.com` پاسخ‌ها را کدگذاری و تحلیل کنید.
 
 ## ۳. آنچه پیاده شده است
 
@@ -94,7 +122,7 @@ docker compose up -d
 | 6 — Psychologist | ✅ detail، کدگذاری، تحلیل — ⏳ `AssessmentReport` فقط مدل است (مثل Mock) |
 | 7 — Communication | ✅ REST گفت‌وگو/پیام + WebSocket (`/ws/`) برای پیام، typing، read receipt، presence |
 | 8 — Admin | ✅ هر ۱۶ endpoint پنل ادمین |
-| 9 — Hardening | ◐ throttle، لاگ سه‌لایه، constraintهای DB، ۱۲۸ تست — ❌ NGINX، CI، monitoring، backup |
+| 9 — Hardening | ◐ throttle، لاگ سه‌لایه، constraintهای DB، ۱۲۹ تست — ❌ NGINX، monitoring، backup |
 
 مسیر بحرانی [[05-sequence-diagrams]] §۹ به‌صورت end-to-end و فقط از راه HTTP تست می‌شود: `apps/assessments/tests/test_critical_path.py`.
 
@@ -212,12 +240,27 @@ flowchart LR
 - **Audit**: رویدادهای حساس در `audit_logs` با IP و user-agent ثبت می‌شوند. سه لاگر جدا: `rorschach.app`، `rorschach.audit`، `rorschach.security`.
 - **Constraintهای دیتابیس**: یکتایی ایمیل (case-insensitive)، یکتایی `(patient, psychologist)`، یکتایی `(assessment, client_response_id)` برای idempotency و `(assessment, sequence)` برای ترتیب پروتکل.
 
+## ۶.۵. تصمیم‌های Docker
+
+| تصمیم | چرا |
+|---|---|
+| **بدون `apt-get`** | تمام وابستگی‌ها wheel دارند (`psycopg[binary]`، Pillow، cryptography)، پس کامپایلر لازم نیست. نصب gcc از میرور دبیان کندترین و شکننده‌ترین مرحله‌ی build بود و روی شبکه‌ی محدود شکست می‌خورد |
+| healthcheck با `python -c urllib.request` | تا image به `curl` یا `wget` نیاز نداشته باشد |
+| `PIP_INDEX_URL` به‌صورت build arg | روی میزبان‌هایی که pypi.org در دسترس نیست، میرور بدهید |
+| اجرای غیر-root (`USER rorschach`) | در هر دو stage |
+| `RUN_MIGRATIONS=false` روی worker | مسابقه‌ی دو کانتینر روی `migrate` هنگام بالا آمدن دیتابیس تازه، راه واقعی deadlock است |
+| `init: true` | تا سیگنال‌ها درست به پروسه برسند و zombie باقی نماند |
+| Daphne به‌جای `runserver` | WebSocket چت به ASGI نیاز دارد |
+| فرانت‌اند بیرون از Docker | watch روی bind mount در ویندوز کند است؛ `npm start` خودش پروکسی می‌کند |
+
+`/health/` عمداً بیرون از `/api/v1/` است: زیرساخت است نه بخشی از قرارداد API، و چون پروسه‌ای که به PostgreSQL نمی‌رسد سالم نیست، دیتابیس را هم بررسی می‌کند.
+
 ## ۷. کارهای باقی‌مانده
 
 | مورد | توضیح |
 |---|---|
-| NGINX و compose تولیدی | reverse proxy، سرو استاتیک Angular، TLS |
-| CI | lint + تست backend و frontend روی هر push ([[07-deployment-operations]] §۴) |
+| NGINX و compose تولیدی | reverse proxy، سرو استاتیک Angular، TLS — وقتی سرور آماده شد |
+| CI | فعلاً لازم نیست (سروری برای استقرار وجود ندارد)؛ `pytest` و `ruff` محلی اجرا می‌شوند |
 | تست WebSocket | consumer پیاده است اما تست خودکار ندارد (نیازمند `pytest-asyncio` و `ChannelsLiveServer`) |
 | `AssessmentReport` | مدل هست، تولیدکننده ندارد — دقیقاً مثل Mock. تا وقتی قالب گزارش تعیین نشده، `report` همیشه `null` است |
 | بارگذاری avatar | در قرارداد فاز ۱ endpoint ندارد |

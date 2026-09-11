@@ -99,3 +99,11 @@ def test_conflict_carries_the_state_machine_message(as_user, patient, psychologi
     body = response.json()
     assert_error_body(body)
     assert body["code"] == "conflict"
+
+
+def test_health_endpoint_is_public_and_checks_the_database(api):
+    """The container healthcheck and load balancer probe (`/health/`)."""
+    response = api.get("/health/")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "checks": {"database": True}}

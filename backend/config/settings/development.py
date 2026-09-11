@@ -30,3 +30,7 @@ if not env("CACHE_URL", default=""):
             "LOCATION": "rorschach-development",
         },
     }
+    # Same reasoning for the chat channel layer: in-memory works because a
+    # development server is one process. It does NOT work across workers, so
+    # production always uses Redis.
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
