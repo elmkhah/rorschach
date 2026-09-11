@@ -1,0 +1,36 @@
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+python_files = ["test_*.py"]
+testpaths = ["apps", "common"]
+addopts = "-q --no-header"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+exclude = [".venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "DJ", "RUF"]
+ignore = [
+    "RUF001", # Persian text triggers "ambiguous unicode character" everywhere
+    "RUF002",
+    "RUF003",
+    "RUF012", # Django class attributes are mutable by design
+    "B008",
+    # The API contract distinguishes null from "" on optional text fields
+    # (`phone`, `gender`, `methodology_reference`): the frontend types them as
+    # `string | null`, so `null=True` on those CharFields is deliberate.
+    "DJ001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# One protocol response per line keeps the demo data readable as a table.
+"apps/administration/management/commands/seed_demo.py" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "common", "config"]
+
+[tool.coverage.run]
+source = ["apps", "common"]
+omit = ["*/migrations/*", "*/tests/*"]

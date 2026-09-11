@@ -15,10 +15,11 @@ related:
   - "[[05-sequence-diagrams]]"
   - "[[08-frontend-phase1]]"
   - "[[09-Roreshach-analysis]]"
+  - "[[11-backend-notes]]"
 ---
 # ۱۰ — اجرای آزمون رورشاخ (R-PAS)
 
-> جریان کامل در Frontend و Mock پیاده شده است. Mock (`src/app/core/mock`) **پیاده‌سازی مرجع** رفتار Backend است: همان endpointها، همان state machine و همان الگوریتم محاسبه (`rpas-scoring.ts`) باید در Django پیاده شود.
+> جریان کامل در Frontend و Mock پیاده شده است. Mock (`src/app/core/mock`) **پیاده‌سازی مرجع** رفتار Backend بود: همان endpointها، همان state machine و همان الگوریتم محاسبه (`rpas-scoring.ts`). Backend اکنون پیاده شده است — `backend/apps/assessments/` و انحراف‌ها در [[11-backend-notes]].
 
 ## ۱. قواعد اجرای استاندارد
 

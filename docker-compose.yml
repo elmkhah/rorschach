@@ -1,0 +1,62 @@
+# Development stack (docs/07 §2). Object storage is external in production.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: rorschach-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rorschach}
+      POSTGRES_USER: ${POSTGRES_USER:-rorschach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rorschach}
+    ports: ['5432:5432']
+    volumes: ['postgres-data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-rorschach}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rorschach-redis
+    ports: ['6379:6379']
+    volumes: ['redis-data:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: rorschach-backend
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file: [./backend/.env]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rorschach}:${POSTGRES_PASSWORD:-rorschach}@postgres:5432/${POSTGRES_DB:-rorschach}
+      REDIS_URL: redis://redis:6379/0
+    volumes: ['./backend:/app']
+    ports: ['8000:8000']
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  celery:
+    build:
+      context: ./backend
+      target: development
+    container_name: rorschach-celery
+    command: celery -A config worker -l info
+    env_file: [./backend/.env]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rorschach}:${POSTGRES_PASSWORD:-rorschach}@postgres:5432/${POSTGRES_DB:-rorschach}
+      REDIS_URL: redis://redis:6379/0
+    volumes: ['./backend:/app']
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -15,6 +15,7 @@ related:
   - "[[02-architecture]]"
   - "[[04-api-design]]"
   - "[[06-development-guide]]"
+  - "[[11-backend-notes]]"
 ---
 # ۰۸ — معماری Frontend (فاز ۱)
 
@@ -105,7 +106,7 @@ Guardها فقط UX هستند؛ مرجع واقعی دسترسی، permission �
 
 - فعال با `environment.useMock = true` (فقط development). در build production فایل `mock.providers.ts` با `mock.providers.prod.ts` جایگزین می‌شود و هیچ کد mock در خروجی نیست.
 - حساب‌های آزمایشی (رمز `Test1234`): `patient@test.com` · `psych@test.com` · `pending@test.com` · `admin@test.com`
-- برای اتصال به Django: `useMock: false` و تنظیم proxy برای `/api` و `/ws`.
+- برای اتصال به Django: `useMock: false`. proxy در `proxy.conf.json` آماده است و `angular.json` به آن وصل شده؛ `/api` و `/ws` به `http://127.0.0.1:8000` می‌روند. جزئیات و تغییرات لازم در [[11-backend-notes]].
 
 ## ۶. نقشه‌ی راه
 
