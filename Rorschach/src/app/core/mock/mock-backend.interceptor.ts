@@ -24,6 +24,11 @@ const match = compileRoutes([
  * they will against Django.
  */
 export const mockBackendInterceptor: HttpInterceptorFn = (req, next) => {
+  // `useMock` is the documented switch (docs/08 §5). Production drops this file
+  // entirely via fileReplacements; in development the flag decides whether
+  // requests are answered here or forwarded to Django through the dev proxy.
+  if (!environment.useMock) return next(req);
+
   const base = environment.apiBaseUrl;
   if (!req.url.startsWith(base)) return next(req);
 

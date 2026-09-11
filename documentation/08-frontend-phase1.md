@@ -104,9 +104,9 @@ Guardها فقط UX هستند؛ مرجع واقعی دسترسی، permission �
 
 ## ۵. Mock Backend
 
-- فعال با `environment.useMock = true` (فقط development). در build production فایل `mock.providers.ts` با `mock.providers.prod.ts` جایگزین می‌شود و هیچ کد mock در خروجی نیست.
+- فعال با `environment.useMock = true` (فقط development) — interceptor خودش این پرچم را بررسی می‌کند. در build production فایل `mock.providers.ts` با `mock.providers.prod.ts` جایگزین می‌شود و هیچ کد mock در خروجی نیست.
 - حساب‌های آزمایشی (رمز `Test1234`): `patient@test.com` · `psych@test.com` · `pending@test.com` · `admin@test.com`
-- برای اتصال به Django: `useMock: false`. proxy در `proxy.conf.json` آماده است و `angular.json` به آن وصل شده؛ `/api` و `/ws` به `http://127.0.0.1:8000` می‌روند. جزئیات و تغییرات لازم در [[11-backend-notes]].
+- **اکنون پیش‌فرض `useMock: false` است و اپ روی backend واقعی اجرا می‌شود** (`environment.development.ts`). proxy در `proxy.conf.json` آماده است و `angular.json` به آن وصل شده؛ `/api` و `/ws` به `http://127.0.0.1:8000` می‌روند. برای برگشت به mock کافی است پرچم را `true` کنید. جزئیات در [[11-backend-notes]] §۵.
 
 ## ۶. نقشه‌ی راه
 
@@ -122,6 +122,7 @@ Guardها فقط UX هستند؛ مرجع واقعی دسترسی، permission �
 | F7 Chat | گفت‌وگوی بلادرنگ (mock) | ✅ |
 | F8 Admin | کاربران، تأیید روان‌شناس، روابط، نسخه‌های آزمون، اطلاعیه، رسانه، Audit | ✅ |
 | F9 Polish | قرار دادن تصاویر، a11y، تست‌های بیشتر | ⏳ منتظر تصاویر |
+| B1 Backend | Django + DRF روی همین قرارداد؛ اتصال فرانت‌اند تأیید شد — [[11-backend-notes]] | ✅ |
 
 ## ۷. اجرا
 
