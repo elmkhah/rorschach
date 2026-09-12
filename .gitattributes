@@ -1,0 +1,5 @@
+# Shell scripts must stay LF, whatever the developer's core.autocrlf is set to.
+# The repository already stores LF, but `core.autocrlf=true` rewrites them to
+# CRLF on checkout — and /bin/sh in the container then rejects the shebang with
+# `#!/bin/sh^M: No such file or directory`, so the backend never starts.
+*.sh text eol=lf

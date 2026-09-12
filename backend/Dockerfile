@@ -23,19 +23,31 @@ RUN groupadd --system rorschach \
 
 COPY requirements/ requirements/
 
+# The entrypoint is installed outside /app on purpose, for two reasons:
+#
+#   1. The development stack bind-mounts ./backend over /app, which shadows the
+#      copy baked into the image — including the line-ending fix below.
+#   2. A Windows checkout can carry CRLF endings, and /bin/sh rejects a CRLF
+#      shebang with `#!/bin/sh^M: No such file or directory`.
+#
+# Normalising it here, at a path no volume covers, makes the container start
+# regardless of how the host checked the repository out. (.gitattributes keeps
+# the working copy at LF as well, so `pytest`/`sh` work on the host too.)
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod 0755 /usr/local/bin/docker-entrypoint.sh
+
 
 FROM base AS development
 RUN python -m pip install -r requirements/development.txt
 COPY --chown=rorschach:rorschach . .
-# A Windows bind mount can carry CRLF line endings, which /bin/sh rejects
-# with `\r: not found`.
-RUN sed -i 's/\r$//' docker-entrypoint.sh \
-    && chmod +x docker-entrypoint.sh \
-    && mkdir -p /app/media /app/staticfiles \
+RUN mkdir -p /app/media /app/staticfiles \
     && chown -R rorschach:rorschach /app/media /app/staticfiles
 USER rorschach
 EXPOSE 8000
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Absolute name, resolved on PATH: `./docker-entrypoint.sh` would depend on the
+# working directory, which the bind mount replaces.
+ENTRYPOINT ["docker-entrypoint.sh"]
 # Daphne rather than runserver: the chat WebSocket needs ASGI.
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
 
@@ -43,9 +55,7 @@ CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
 FROM base AS production
 RUN python -m pip install -r requirements/production.txt
 COPY --chown=rorschach:rorschach . .
-RUN sed -i 's/\r$//' docker-entrypoint.sh \
-    && chmod +x docker-entrypoint.sh \
-    && mkdir -p /app/media /app/staticfiles \
+RUN mkdir -p /app/media /app/staticfiles \
     && chown -R rorschach:rorschach /app/media /app/staticfiles
 USER rorschach
 
@@ -56,6 +66,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)"
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", \
      "--lifespan", "off", "--workers", "3", "--forwarded-allow-ips", "*"]

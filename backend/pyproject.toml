@@ -2,7 +2,12 @@
 DJANGO_SETTINGS_MODULE = "config.settings.testing"
 python_files = ["test_*.py"]
 testpaths = ["apps", "common"]
-addopts = "-q --no-header"
+# `--ds` rather than relying on the line above: pytest-django lets an ambient
+# DJANGO_SETTINGS_MODULE win over this file, and the containers export
+# `config.settings.development`. Without it, `docker compose exec backend pytest`
+# runs against the real broker and Redis with throttling on, and tests that
+# assert on eagerly-run Celery tasks fail.
+addopts = "-q --no-header --ds=config.settings.testing"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff]
