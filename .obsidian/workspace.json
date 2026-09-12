@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/09-Roreshach-analysis.md",
+                "file": "documentation/11-backend-notes.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "09-Roreshach-analysis"
+              "title": "11-backend-notes"
             }
           }
         ]
@@ -190,6 +190,7 @@
   },
   "active": "8cbed3c899a76c33",
   "lastOpenFiles": [
+    "backend/media",
     "docs/00-overview.md",
     "docs/09-Roreshach-analysis.md",
     "docs/01-requirements.md",
