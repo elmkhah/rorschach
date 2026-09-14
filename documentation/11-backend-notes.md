@@ -1,278 +1,287 @@
 ---
-title: پیاده‌سازی Backend — یادداشت‌ها و انحراف‌ها
+title: یادداشت‌های پیاده‌سازی Backend
 doc_id: DOC-11
-version: 1
-status: draft
-architecture_version: Architecture v1
+version: 2
+status: as-built
+architecture_version: Architecture v2 — as-built
+code_revision: 10c22fe
 language: fa
+updated: 1405-06-23
 tags:
   - backend
   - django
   - drf
   - deviations
+  - known-gaps
 related:
   - "[[02-architecture]]"
   - "[[03-data-model-er]]"
   - "[[04-api-design]]"
   - "[[06-development-guide]]"
-  - "[[08-frontend-phase1]]"
+  - "[[08-frontend]]"
   - "[[10-assessment-rpas]]"
 ---
-# ۱۱ — پیاده‌سازی Backend
 
-> Backend روی همان قرارداد `/api/v1` فاز ۱ سوار شده است. مرجع رفتار، Mock فرانت‌اند بود ([[10-assessment-rpas]]): همان endpointها، همان state machine و همان الگوریتم محاسبه. هر جا از Mock فاصله گرفته‌ایم در بخش ۴ با دلیل آمده و کار لازم در فرانت‌اند مشخص شده است.
+# ۱۱ — یادداشت‌های پیاده‌سازی Backend
 
-## ۱. پشته و ساختار
+> Backend روی همان قرارداد `/api/v1` سوار شد که فرانت‌اند از پیش داشت. مرجع رفتار،
+> **Mock فرانت‌اند** بود: همان اندپوینت‌ها، همان ماشین حالت و همان الگوریتم محاسبه.
+> این سند می‌گوید کجا و چرا از سند طراحی یا از Mock فاصله گرفتیم، و چه چیزی هنوز
+> باقی مانده است.
+
+## ۱. چرا Mock مرجع شد
+
+فرانت‌اند زودتر از Backend ساخته شد و برای اینکه بتواند مستقل اجرا شود، یک
+Mock کامل از API داشت: `mock-router.ts` قالب خطا را می‌ساخت، `handlers/*` رفتار هر
+اندپوینت را و `rpas-scoring.ts` الگوریتم محاسبه را.
+
+این وضعیت یک فرصت بود: به‌جای نوشتن Backend از روی سند و امید به تطابق، Mock به‌عنوان
+**مشخصات اجرایی** خوانده شد. نتیجه این شد که هنگام اتصال، **هیچ تغییری در مدل‌ها،
+سرویس‌های `core/api/*` یا کامپوننت‌ها لازم نبود**؛ نام و شکل تمام فیلدها یکی بود.
+
+## ۲. پشته و ساختار
 
 | موضوع | انتخاب |
 |---|---|
-| Runtime | Python 3.13+ · Django 6.0 · Django REST Framework 3.18 |
-| Auth | SimpleJWT — access در بدنه، refresh در کوکی `HttpOnly` با چرخش و blacklist |
-| داده | PostgreSQL (JSONB برای داده‌ی پویا) — تست‌ها روی SQLite هم اجرا می‌شوند |
-| Cache / Queue / Realtime | Redis · Celery · Django Channels (ASGI) |
-| Storage | FileSystem در توسعه · S3-compatible در production |
-| کیفیت | pytest (۱۲۹ تست) · ruff |
+| زمان اجرا | Python 3.13 · Django 6.0 · Django REST Framework 3.18 |
+| احراز هویت | SimpleJWT — توکن دسترسی در بدنه، تمدید در کوکی `HttpOnly` با چرخش و ابطال |
+| داده | PostgreSQL با ستون‌های JSON — تست‌ها روی SQLite هم اجرا می‌شوند |
+| Cache / صف / بلادرنگ | Redis · Celery · Django Channels روی ASGI |
+| ذخیره‌سازی | سیستم‌فایل در توسعه · S3-compatible در production |
+| کیفیت | ۱۲۹ تست pytest · ruff بدون خطا |
 
-```
-backend/
-├── config/settings/{base,development,production,testing}.py · urls · asgi · wsgi · celery
-├── apps/
-│   ├── accounts/        User، احراز هویت، /users/me/
-│   ├── profiles/        پروفایل دو نقش، مدارک، افتخارات، فهرست روان‌شناسان
-│   ├── relationships/   ارتباط بیمار ↔ روان‌شناس، /patients/:id/
-│   ├── catalog/         TestDefinition → TestVersion → TestPhase → AssessmentCard
-│   ├── assessments/     موتور آزمون + rpas/{codes,scoring}
-│   ├── messaging/       گفت‌وگو، پیام، WebSocket
-│   ├── notifications/   اطلاعیه‌ی سایت
-│   ├── media/           MediaAsset
-│   ├── audit/           AuditLog + middleware
-│   └── administration/  پنل ادمین
-└── common/              exceptions · pagination · permissions · throttling · models
-```
-
-لایه‌بندی طبق [[06-development-guide]]: `View → Serializer → Service → Model` و `Selector` برای queryهای خواندنی. منطق آزمون کامل در `apps/assessments/services.py` است، نه در view.
-
-## ۲. اجرا
-
-```bash
-# ۱) وابستگی‌ها
-cd backend
-python -m venv .venv && .venv/Scripts/activate        # لینوکس: source .venv/bin/activate
-pip install -r requirements/development.txt
-cp .env.example .env
-
-# ۲) دیتابیس و داده‌ی اولیه
-python manage.py migrate
-python manage.py seed_catalog      # ساختار آزمون رورشاخ (هر محیطی)
-python manage.py seed_demo         # حساب‌های آزمایشی (فقط DEBUG)
-
-# ۳) اجرا
-python manage.py runserver 8000
-```
-
-**یا با Docker — روش پیشنهادی** (PostgreSQL، Redis، Django و Celery):
-
-```bash
-docker compose up -d --build      # از ریشه‌ی مخزن
-cd Rorschach && npm start          # فرانت‌اند روی :4200
-```
-
-entrypoint خودش منتظر دیتابیس می‌ماند، migrate می‌کند، ساختار آزمون را می‌سازد و (با `SEED_DEMO=true` که پیش‌فرض است) حساب‌های آزمایشی را ایجاد می‌کند. هر سه دستور idempotent‌اند، پس restart بی‌خطر است.
-
-سرور Angular عمداً بیرون از Docker می‌ماند: watch کردن فایل‌ها از روی bind mount در ویندوز کند است و `npm start` از قبل به `:8000` پروکسی می‌کند.
-
-| دستور | کار |
-|---|---|
-| `docker compose logs -f backend` | لاگ زنده |
-| `docker compose exec backend python manage.py <cmd>` | اجرای دستور مدیریتی |
-| `docker compose down -v` | پاک‌کردن کامل داده و شروع از صفر |
-| `PIP_INDEX_URL=<mirror> docker compose build` | وقتی pypi.org در دسترس نیست |
-
-- سلامت سرویس: `http://localhost:8000/health/` — مستندات تعاملی API: `http://localhost:8000/api/docs/`
-- تست‌ها: `python -m pytest` — لینت: `python -m ruff check .`
-
-> `seed_demo` علاوه بر حساب‌ها، یک پروتکل کامل و کدگذاری‌شده (۱۸ پاسخ) و یک آزمون نیمه‌تمام می‌سازد تا صفحات روان‌شناس از همان ابتدا داده داشته باشند.
-
-### حساب‌های آزمایشی
-
-رمز همه: **`Test1234`** — همان‌هایی که [[08-frontend-phase1]] §۵ می‌گوید.
-
-| ایمیل | نقش | وضعیت / کاربرد در تست |
-|---|---|---|
-| `patient@test.com` | مراجع — سارا محمدی | ارتباط فعال با مریم احمدی؛ **یک آزمون کامل و کدگذاری‌شده** دارد. یک درخواست PENDING هم به حسین کریمی |
-| `patient3@test.com` | مراجع — نرگس کاظمی | ارتباط فعال؛ **آزمون نیمه‌تمام روی کارت ۴** — برای تست ادامه‌ی آزمون پس از بستن مرورگر |
-| `patient2@test.com` | مراجع — علی رضایی | فقط یک درخواست PENDING — برای تست حالت «منتظر تأیید» |
-| `psych@test.com` | روان‌شناس — مریم احمدی | APPROVED، دو مراجع فعال، یک درخواست در انتظار، پروتکل کامل برای کدگذاری |
-| `psych2@test.com` | روان‌شناس — حسین کریمی | APPROVED، یک درخواست در انتظار تأیید |
-| `psych3@test.com` · `psych4@test.com` | روان‌شناس | APPROVED و بدون مراجع — برای تست جست‌وجو و درخواست جدید |
-| `pending@test.com` | روان‌شناس — امید نوری | **PENDING_VERIFICATION** — برای تست صفحه‌ی «در انتظار تأیید» و تأیید از پنل ادمین |
-| `admin@test.com` | مدیر | پنل ادمین، تأیید روان‌شناس، نسخه‌های آزمون، Audit Log |
-
-سناریوی پیشنهادی برای دیدن کل چرخه: با `admin@test.com` وارد شوید و `pending@test.com` را تأیید کنید → با `patient2@test.com` ببینید درخواستش در انتظار است → با `psych@test.com` تأییدش کنید → با `patient2@test.com` آزمون را از ابتدا اجرا کنید → دوباره با `psych@test.com` پاسخ‌ها را کدگذاری و تحلیل کنید.
+ساختار کامل در [[06-development-guide]] §۳. لایه‌بندی `View → Serializer → Service →
+Model` با selector برای خواندن؛ کل ماشین حالت آزمون در `apps/assessments/services.py`
+است، نه در view.
 
 ## ۳. آنچه پیاده شده است
 
-| Sprint ([[06-development-guide]] §۷) | وضعیت |
+| Sprint | وضعیت |
 |---|---|
-| 1 — Foundation | ✅ Django · Docker · PostgreSQL · Redis · settings سه‌محیطی — ❌ NGINX و CI |
-| 2 — Identity | ✅ ثبت‌نام، ورود، refresh، خروج، پروفایل، مدارک تأیید |
-| 3 — Relationships | ✅ جست‌وجو، درخواست، تأیید، رد، لغو، `/patients/:id/` |
-| 4 — Test Engine | ✅ TestDefinition/Version/Phase/Card، نسخه‌بندی، clone و publish |
-| 5 — Rorschach Flow | ✅ کل جریان R-PAS: start، responses، next (+Pr)، clarifications، complete، events |
-| 6 — Psychologist | ✅ detail، کدگذاری، تحلیل — ⏳ `AssessmentReport` فقط مدل است (مثل Mock) |
-| 7 — Communication | ✅ REST گفت‌وگو/پیام + WebSocket (`/ws/`) برای پیام، typing، read receipt، presence |
-| 8 — Admin | ✅ هر ۱۶ endpoint پنل ادمین |
-| 9 — Hardening | ◐ throttle، لاگ سه‌لایه، constraintهای DB، ۱۲۹ تست — ❌ NGINX، monitoring، backup |
+| ۱ Foundation | ✅ Django · Docker · PostgreSQL · Redis · تنظیمات چهار‌محیطی — ⛔ NGINX و CI |
+| ۲ Identity | ✅ ثبت‌نام، ورود، تمدید، خروج، پروفایل، مدارک تأیید |
+| ۳ Relationships | ✅ جست‌وجو، درخواست، تأیید، رد، لغو، پرونده‌ی مراجع |
+| ۴ Test Engine | ✅ تعریف/نسخه/مرحله/کارت، نسخه‌بندی، clone و انتشار |
+| ۵ Rorschach Flow | ✅ کل جریان R-PAS: شروع، پاسخ، کارت بعد (+ یادآوری)، روشن‌سازی، تکمیل، رویدادها |
+| ۶ Psychologist | ✅ پروتکل کامل، کدگذاری، تحلیل — ◐ گزارش نهایی فقط مدل است |
+| ۷ Communication | ✅ REST گفت‌وگو/پیام + WebSocket برای پیام، تایپ، خوانده‌شدن، حضور |
+| ۸ Admin | ✅ هر ۱۶ مسیر پنل ادمین |
+| ۹ Hardening | ◐ محدودسازی نرخ، لاگ سه‌لایه، قیدهای دیتابیس، ۱۲۹ تست — ⛔ NGINX، مانیتورینگ، پشتیبان |
 
-مسیر بحرانی [[05-sequence-diagrams]] §۹ به‌صورت end-to-end و فقط از راه HTTP تست می‌شود: `apps/assessments/tests/test_critical_path.py`.
+مسیر بحرانی به‌صورت end-to-end و فقط از راه HTTP تست می‌شود:
+`apps/assessments/tests/test_critical_path.py`.
 
-## ۴. انحراف‌ها از سند و Mock
+## ۴. انحراف‌ها از سند طراحی و از Mock
 
-هر مورد: **چه تغییری**، **چرا**، **فرانت‌اند چه کند**.
+هر مورد: **چه تغییری**، **چرا**، **اثر روی فرانت‌اند**.
 
-### D-01 — نام app از `tests` به `catalog`
+### D-01 — نام اپ از `tests` به `catalog`
 
-[[02-architecture]] §۵ و [[06-development-guide]] §۲ این app را `tests` می‌نامند. یک پکیج پایتون به نام `tests` داخل `apps/` با کشف خودکار تست‌ها تداخل می‌کند (هم `manage.py test` و هم pytest).
+سند طراحی اولیه این اپ را `tests` می‌نامید. یک پکیج پایتون به نام `tests` داخل
+`apps/` با کشف خودکار تست‌ها تداخل می‌کند (هم `manage.py test` و هم pytest).
 
-**فرانت‌اند:** بدون اثر. endpoint همان `/api/v1/tests/` است.
+**فرانت‌اند:** بدون اثر — اندپوینت همچنان `/api/v1/tests/` است.
 
 ### D-02 — جدول `assessment_measurements` ساخته نشد
 
-ERD سند [[03-data-model-er]] §۱ یک entity جدا برای اندازه‌گیری دارد. اندازه‌گیری‌های R-PAS (`reaction_time_ms`، `card_turns`، `final_rotation`) سه فیلد ثابت‌اند و قرارداد فرانت‌اند هم آن‌ها را به‌صورت یک شیء روی خود پاسخ مدل می‌کند (`ResponseMeasurements`). طبق قاعده‌ی §۱۰ همان سند (`داده‌ی پویا → JSONB`) در `assessment_responses.measurement_data` ذخیره می‌شوند.
+ERD طراحی اولیه یک موجودیت جدا برای اندازه‌گیری داشت. اندازه‌گیری‌های R-PAS
+(`reaction_time_ms`، `card_turns`، `final_rotation`) سه فیلد ثابت‌اند و قرارداد
+فرانت‌اند هم آن‌ها را به‌صورت یک شیء روی خود پاسخ مدل می‌کند. طبق قاعده‌ی
+«داده‌ی پویا ← JSON»، در `assessment_responses.measurement_data` نشستند.
 
 **فرانت‌اند:** بدون اثر.
 
 ### D-03 — جدول `user_sessions` ساخته نشد
 
-مدیریت نشست‌ها به `rest_framework_simplejwt.token_blacklist` سپرده شده (`OutstandingToken` / `BlacklistedToken`)؛ refresh با هر بار استفاده می‌چرخد و توکن قبلی blacklist می‌شود.
+مدیریت نشست به `rest_framework_simplejwt.token_blacklist` سپرده شد؛ توکن تمدید با هر
+بار استفاده می‌چرخد و توکن قبلی در لیست سیاه می‌رود.
 
 **فرانت‌اند:** بدون اثر.
 
 ### D-04 — `Notification` پیاده نشد
 
-[[03-data-model-er]] §۸ این entity را دارد، اما [[08-frontend-phase1]] اعلان‌های شخصی را از محصول حذف کرده است. فقط `SiteAnnouncement` وجود دارد.
+طراحی داده این موجودیت را داشت، اما محصول اعلان شخصی را حذف کرده است. فقط
+`SiteAnnouncement` وجود دارد.
 
-**فرانت‌اند:** بدون اثر (قبلاً حذف شده).
+**فرانت‌اند:** بدون اثر (قبلاً حذف شده بود).
 
 ### D-05 — `last_login_at` ستون جدا ندارد
 
-همان `last_login` داخلی Django است که با نام قراردادی serialize می‌شود.
+همان `last_login` داخلی Django است که با نام قراردادی سریالایز می‌شود.
 
 **فرانت‌اند:** بدون اثر.
 
-### D-06 — تحلیل به‌صورت async ساخته می‌شود
+### D-06 — تحلیل به‌صورت غیرهمزمان ساخته می‌شود
 
-Mock در لحظه‌ی `complete` تحلیل را همان‌جا محاسبه می‌کرد. طبق BR-09 و [[04-api-design]] §۵، تکمیل آزمون نباید منتظر کار پس از commit بماند: اکنون در همان transaction یک `AssessmentAnalysis` با وضعیت `PENDING` ساخته می‌شود و محاسبه با Celery پس از commit انجام می‌گیرد.
+Mock در لحظه‌ی `complete` تحلیل را همان‌جا محاسبه می‌کرد. طبق BR-09، تکمیل آزمون
+نباید منتظر کار پس از commit بماند: حالا در همان تراکنش یک `AssessmentAnalysis` با
+وضعیت `PENDING` ساخته می‌شود و محاسبه با Celery **پس از commit** انجام می‌گیرد.
 
-برای اینکه هرگز تحلیلی در `PENDING` گیر نکند (ورکر خاموش باشد)، `GET /assessments/sessions/{id}/detail/` اگر آزمون `COMPLETED` است و تحلیل `DONE` نیست، همان‌جا محاسبه می‌کند. محاسبه‌ی متغیرهای خام صرفاً چند ده سطر حساب است و هزینه‌ای ندارد.
+برای اینکه هرگز تحلیلی در `PENDING` گیر نکند (مثلاً وقتی کارگر خاموش است)،
+`GET …/detail/` اگر آزمون تکمیل‌شده باشد و تحلیل `DONE` نباشد، همان‌جا محاسبه می‌کند.
 
-**فرانت‌اند:** عملاً بدون اثر، اما قرارداد را رعایت کنید — `analysis` ممکن است `{status: 'PENDING', calculated_data: null}` باشد. صفحه‌ی `session-review.page.ts` از قبل با `@if (result(); as res)` محافظت شده است؛ اگر خواستید، در حالت `PENDING` به‌جای خالی‌بودن یک پیام «در حال محاسبه…» نشان دهید.
+**فرانت‌اند:** عملاً بدون اثر، اما قرارداد را رعایت کنید — `analysis` ممکن است
+`{status: 'PENDING', calculated_data: null}` باشد. صفحه‌ی مرور جلسه با
+`@if (result(); as res)` محافظت شده؛ بهتر است در حالت `PENDING` پیام «در حال محاسبه»
+نشان داده شود.
 
 ### D-07 — محدودیت بارگذاری مدارک
 
-Mock هیچ محدودیتی نداشت. Backend: حداکثر **۱۰ فایل**، هر کدام حداکثر **۱۰ مگابایت**، فقط `PDF` / `JPEG` / `PNG` / `WebP`. تخطی → `400` با پیام فارسی در `detail`.
+Mock هیچ محدودیتی نداشت. Backend: حداکثر **۱۰ فایل**، هر کدام حداکثر **۱۰ مگابایت**،
+فقط `PDF` / `JPEG` / `PNG` / `WebP`. تخطی → `400` با پیام فارسی.
 
-**فرانت‌اند — کار لازم:** در فرم بارگذاری مدارک (`features/auth`) همین محدودیت‌ها را به‌صورت `accept=".pdf,image/*"` و بررسی `file.size` قبل از ارسال اعمال کنید و متن راهنما را اضافه کنید، وگرنه کاربر تازه بعد از آپلود ۵۰ مگابایت خطا می‌گیرد.
+**وضعیت فرانت‌اند:** ◐ نیمه‌انجام — فیلتر `accept=".pdf,image/*"` روی ورودی فایل هست،
+اما بررسی حجم پیش از ارسال و متن راهنما نیست. کاربر پس از بارگذاری یک فایل بزرگ
+خطا می‌گیرد.
 
-### D-08 — Rate limiting
+### D-08 — محدودسازی نرخ
 
-در Mock نبود. Backend: گروه `auth` (ورود/ثبت‌نام/refresh) **۲۰ درخواست در دقیقه** و گروه `write` (ثبت پاسخ، پیام، کدگذاری و…) **۱۲۰ در دقیقه**. پاسخ `429` با بدنه‌ی استاندارد خطا. اگر Redis در دسترس نباشد، محدودکننده **باز** می‌شود (درخواست رد نمی‌شود) و رویداد در لاگ امنیتی ثبت می‌گردد.
+در Mock نبود. Backend: گروه `auth` (ورود/ثبت‌نام/تمدید) **۲۰ درخواست در دقیقه** و گروه
+`write` **۱۲۰ در دقیقه**. پاسخ `429` با بدنه‌ی استاندارد خطا. اگر Redis در دسترس
+نباشد، محدودکننده **باز** می‌شود و رویداد در لاگ امنیتی ثبت می‌گردد.
 
-**فرانت‌اند — کار لازم:** مطمئن شوید autosave و ثبت پاسخ همچنان debounced بماند ([[06-development-guide]] §۴ قاعده‌ی ۹). `error.interceptor` پیام `detail` را نمایش می‌دهد، پس نیازی به کد جدید نیست؛ فقط در حلقه‌ی retry فاصله‌ی زمانی بگذارید.
+**وضعیت فرانت‌اند:** ✅ انجام شد — `assessment-run.store.ts` تلاش مجدد را با فاصله‌ی
+پلکانی (۸۰۰ میلی‌ثانیه × شماره‌ی تلاش، حداکثر ۳ بار) و فقط برای خطای شبکه یا ۵xx
+انجام می‌دهد.
 
 ### D-09 — اعتبارسنجی سخت‌گیرانه‌تر رمز عبور
 
-Mock فقط طول ≥ ۸ را بررسی می‌کرد. Backend علاوه بر آن validatorهای Django را اجرا می‌کند: رمزهای پرتکرار، رمزهای کاملاً عددی و رمز شبیه به ایمیل رد می‌شوند.
+Mock فقط طول ≥ ۸ را بررسی می‌کرد. Backend علاوه بر آن اعتبارسنج‌های Django را اجرا
+می‌کند: رمزهای پرتکرار، کاملاً عددی و شبیه به ایمیل رد می‌شوند.
 
-**فرانت‌اند — کار لازم:** متن راهنمای زیر فیلد رمز در فرم ثبت‌نام را کامل کنید («حداقل ۸ کاراکتر، نه کاملاً عددی و نه رمز پرتکرار»). خطاها از قبل روی همان فیلد می‌نشینند (`errors.password` در `shared/utils/forms.ts`).
+**وضعیت فرانت‌اند:** ⛔ انجام نشده — متن راهنمای زیر فیلد رمز هنوز فقط
+«حداقل ۸ کاراکتر» است. خطاها از قبل روی همان فیلد می‌نشینند، فقط متن راهنما ناقص است.
 
 ### D-10 — `image_url` کارت‌ها نسبی می‌ماند
 
-اگر تصویر کارت از `MediaAsset` (Object Storage) بیاید، آدرس **مطلق** برگردانده می‌شود. اما در توسعه تصاویر از خود اپ Angular سرو می‌شوند (`public/images/test/N.jpg`) و آدرس باید **نسبی** بماند تا مرورگر آن را نسبت به دامنه‌ی فرانت‌اند حل کند؛ مطلق‌کردن آن به دامنه‌ی Django اشاره می‌کرد و ۴۰۴ می‌داد.
+اگر تصویر کارت از `MediaAsset` بیاید، آدرس **مطلق** برگردانده می‌شود. اما در توسعه
+تصاویر را خود اپ Angular سرو می‌کند (`public/images/test/N.jpg`) و آدرس باید **نسبی**
+بماند تا مرورگر آن را نسبت به دامنه‌ی فرانت‌اند حل کند؛ مطلق کردنش به دامنه‌ی Django
+اشاره می‌کرد و ۴۰۴ می‌داد.
 
-**فرانت‌اند:** بدون اثر — فقط `public/images/test/1..10.jpg` باید سر جایش بماند. برای production، تصاویر به Object Storage می‌روند و `seed_catalog` با `image_asset` به آن‌ها وصل می‌شود.
+**فرانت‌اند:** بدون اثر — فقط فایل‌های `public/images/test/1..10.jpg` باید سر جایشان
+بمانند.
 
 ### D-11 — پیام خطای ۴۰۱ همیشه عمومی است
 
-پیام‌های داخلی SimpleJWT (مثلاً «Given token not valid for any token type») انگلیسی‌اند و برای کاربر معنایی ندارند؛ هر ۴۰۱ با `detail: "احراز هویت لازم است."` برمی‌گردد. خطاهای صریح خودمان (مثل «ایمیل یا رمز عبور اشتباه است.») دست‌نخورده می‌مانند.
+پیام‌های داخلی SimpleJWT انگلیسی‌اند و برای کاربر معنایی ندارند؛ هر ۴۰۱ با
+`detail: "احراز هویت لازم است."` برمی‌گردد. خطاهای صریح خودمان (مثل «ایمیل یا رمز
+عبور اشتباه است.») دست‌نخورده می‌مانند.
 
-**فرانت‌اند:** بدون اثر — interceptor روی ۴۰۱ ساختاری عمل می‌کند (refresh و سپس خروج).
+**فرانت‌اند:** بدون اثر — interceptor روی ۴۰۱ ساختاری عمل می‌کند.
 
-### D-12 — `PAUSED` عملاً بی‌اثر است
+### D-12 — `pause` و `resume` پیاده نشدند
 
-طبق [[10-assessment-rpas]] §۱ آزمون توقف ندارد. اگر session به هر دلیل در `PAUSED` باشد، اولین درخواست مراجع آن را به `IN_PROGRESS` برمی‌گرداند. `pause` و `resume` سند [[04-api-design]] پیاده **نشده‌اند**.
+طبق [[10-assessment-rpas]] §۱ آزمون توقف ندارد. اگر جلسه‌ای به هر دلیل در `PAUSED`
+باشد، نخستین درخواست مراجع آن را به `IN_PROGRESS` برمی‌گرداند. حالت `PAUSED` فقط
+برای سازگاری قرارداد در مدل مانده است.
 
 **فرانت‌اند:** بدون اثر — `AssessmentsApi` این دو را صدا نمی‌زند.
 
+### D-13 — تأیید روان‌شناس در سطح اندپوینت اجباری نیست ⚠️
+
+کلاس `IsApprovedPsychologist` در `common/permissions.py` تعریف شده اما **در هیچ
+view‌ای استفاده نمی‌شود**. اجرای BR-01 در عمل از سه راه دیگر انجام می‌شود:
+
+- روان‌شناس تأییدنشده در فهرست عمومی (`GET /psychologists/`) دیده نمی‌شود.
+- درخواست ارتباط با روان‌شناس تأییدنشده `400` می‌گیرد.
+- نگهبان `approvedPsychologistGuard` در فرانت‌اند مسیر `/psychologist/**` را می‌بندد.
+
+**اثر باقی‌مانده:** اگر روان‌شناسی ابتدا `APPROVED` شود، رابطه‌ی فعال بگیرد و سپس
+`SUSPENDED` شود، همچنان می‌تواند با یک کلاینت مستقیم (بدون عبور از نگهبان فرانت‌اند)
+پرونده‌ی همان مراجعان و پروتکل آزمونشان را بخواند و درخواست‌های در انتظار را تأیید
+کند. برای بستن کامل این مسیر باید `IsApprovedPsychologist` روی viewهای بالینی
+(`PatientDetailView`، `SessionDetailFullView`، `CodingView`، `ApproveView` و
+`RejectView`) اعمال شود.
+
+**وضعیت:** شکاف شناخته‌شده، رفع نشده — نه یک تصمیم طراحی.
+
 ## ۵. اتصال فرانت‌اند — انجام شد
 
-فرانت‌اند اکنون روی backend واقعی اجرا و تست شده است. سه تغییر لازم بود:
+فرانت‌اند روی Backend واقعی اجرا و در مرورگر تأیید شد. فقط سه تغییر لازم بود:
 
-۱. **proxy** — `Rorschach/proxy.conf.json` اضافه و به `angular.json` وصل شد؛ `/api` و `/ws` به `http://127.0.0.1:8000` می‌روند (`ws: true` برای WebSocket).
+1. **پروکسی** — افزودن `Rorschach/proxy.conf.json` و اتصالش به `angular.json`؛
+   `/api` و `/ws` به `http://127.0.0.1:8000` می‌روند (با `ws: true`).
+2. **`useMock: false`** در `src/environments/environment.development.ts` — همان فایلی
+   که ساخت توسعه جایگزین می‌کند، نه `environment.ts`.
+3. **`useMock` واقعاً پرچم mock نبود** — `mock-backend.interceptor.ts` هر درخواست
+   منطبق با `apiBaseUrl` را بی‌قیدوشرط پاسخ می‌داد و فقط در ساخت production با
+   `fileReplacements` حذف می‌شد؛ یعنی `false` کردن پرچم هیچ اثری نداشت. یک سطر به
+   ابتدای interceptor اضافه شد:
 
-۲. **`useMock: false`** در `src/environments/environment.development.ts` — همان فایلی که build توسعه جایگزین می‌کند، نه `environment.ts`.
+   ```ts
+   if (!environment.useMock) return next(req);
+   ```
 
-۳. **`useMock` واقعاً پرچم mock نبود.** `mock-backend.interceptor.ts` هر درخواستِ منطبق با `apiBaseUrl` را بی‌قید‌وشرط پاسخ می‌داد و فقط در build تولیدی با `fileReplacements` حذف می‌شد؛ یعنی `false` کردن پرچم هیچ اثری نداشت. یک خط به ابتدای interceptor اضافه شد تا پرچم همان کاری را بکند که [[08-frontend-phase1]] §۵ وعده داده است:
+هیچ تغییر دیگری در مدل‌ها، سرویس‌های `core/api/*` یا کامپوننت‌ها لازم نبود.
 
-```ts
-if (!environment.useMock) return next(req);
+```mermaid
+flowchart LR
+    A["Angular :4200"] -->|/api/v1| P["proxy.conf.json"]
+    A -->|/ws| P
+    P --> D["Django :8000"]
+    D --> PG[("PostgreSQL")]
+    D --> R[("Redis")]
 ```
-
-سه مورد محتوایی بخش ۴ همچنان باز است: محدودیت‌های بارگذاری مدارک (D-07)، فاصله‌ی retry (D-08) و متن راهنمای رمز عبور (D-09).
-
-هیچ تغییر دیگری در مدل‌ها، سرویس‌های `core/api/*` یا کامپوننت‌ها لازم نبود؛ نام و شکل تمام فیلدها با `core/models/*` یکی است.
 
 ### آنچه در مرورگر تأیید شد
 
 | مسیر | نتیجه |
 |---|---|
-| ورود و بازیابی نشست | `login` → `{access, me}` + کوکی refresh؛ در بوت‌استرپ بدون کوکی پاسخ `401` می‌گیرد (نه ۵۰۰) |
+| ورود و بازیابی نشست | `login` → `{access, me}` + کوکی تمدید؛ در بوت‌استرپ بدون کوکی پاسخ `401` می‌گیرد (نه ۵۰۰) |
 | داشبورد مراجع و روان‌شناس | شمارنده‌ها از داده‌ی واقعی: ۲ مراجع فعال، ۱ درخواست، ۱ آزمون تکمیل‌شده |
-| فهرست روان‌شناسان | ۴ روان‌شناس تأییدشده با `relationship_status` درست («ارتباط فعال» / «ارسال درخواست») |
-| اجرای آزمون | تصویر کارت نمایش داده شد (تأیید D-10)؛ ثبت پاسخ، و **قاعده‌ی Pr**: با یک پاسخ پیش نرفت و متن یادآوری آمد — در DB هم `prompts=1` و `prompted_cards=[1]` ثبت شد |
-| جزئیات آزمون | جدول کامل متغیرها در هر پنج حوزه، با اعداد درست (`WSumC=۴٫۵`، `MC=۶٫۵`، `PPD=۶`، `MC−PPD=۰٫۵`) |
+| فهرست روان‌شناسان | ۴ روان‌شناس تأییدشده با `relationship_status` درست |
+| اجرای آزمون | تصویر کارت نمایش داده شد (تأیید D-10)؛ ثبت پاسخ؛ و **قاعده‌ی یادآوری**: با یک پاسخ پیش نرفت و متن یادآوری آمد — در دیتابیس هم `prompts=1` و `prompted_cards=[1]` ثبت شد |
+| جزئیات آزمون | جدول کامل متغیرها در هر پنج حوزه با اعداد درست (`WSumC=۴٫۵`، `MC=۶٫۵`، `PPD=۶`، `MC−PPD=۰٫۵`) |
 | تفسیر غیرقطعی | نسخه‌ی الگوریتم، دکمه‌ی محاسبه‌ی مجدد و هر دو هشدار اجباری BR-18 |
-| چت و WebSocket | سوکت روی `/ws/` وصل و پایدار می‌ماند؛ پیام REST مراجع، بلادرنگ به‌صورت `message.new` به سوکت روان‌شناس رسید |
-
-```mermaid
-flowchart LR
-    A["Angular :4200"] -->|/api/v1| P[proxy.conf.json]
-    A -->|/ws| P
-    P --> D["Django :8000"]
-    D --> PG[(PostgreSQL)]
-    D --> R[(Redis)]
-```
+| چت و WebSocket | سوکت روی `/ws/` وصل و پایدار ماند؛ پیام REST مراجع بلادرنگ به‌صورت `message.new` به سوکت روان‌شناس رسید |
 
 ## ۶. تصمیم‌های امنیتی
 
-- **object-level permission** در `apps/assessments/permissions.py`: هیچ endpointای با `is_authenticated` تنها پاسخ نمی‌دهد. `readable_session` بررسی می‌کند کاربر مالک است، روان‌شناسِ دارای رابطه‌ی `ACTIVE` است، یا ادمین (BR-02، [[02-architecture]] §۸).
-- **BR-12 در برابر BR-13**: با `REVOKED` شدن رابطه، دسترسی جاری روان‌شناس بسته می‌شود ولی session حذف یا بی‌صاحب نمی‌شود؛ سه‌گانه‌ی patient/psychologist/relationship روی session ثابت مانده است.
-- **Audit**: رویدادهای حساس در `audit_logs` با IP و user-agent ثبت می‌شوند. سه لاگر جدا: `rorschach.app`، `rorschach.audit`، `rorschach.security`.
-- **Constraintهای دیتابیس**: یکتایی ایمیل (case-insensitive)، یکتایی `(patient, psychologist)`، یکتایی `(assessment, client_response_id)` برای idempotency و `(assessment, sequence)` برای ترتیب پروتکل.
+- **مجوز سطح شیء** در `apps/assessments/permissions.py`: هیچ اندپوینتی با
+  «کاربر وارد شده است» تنها پاسخ نمی‌دهد. تابع `readable_session` بررسی می‌کند کاربر
+  مالک است، روان‌شناسِ دارای رابطه‌ی `ACTIVE` است، یا ادمین.
+- **BR-12 در برابر BR-13**: با لغو رابطه، دسترسی جاری روان‌شناس بسته می‌شود ولی جلسه
+  حذف یا بی‌صاحب نمی‌شود؛ سه‌گانه‌ی مراجع/روان‌شناس/رابطه روی جلسه ثابت مانده و
+  کلیدهای خارجی `PROTECT` هستند.
+- **ممیزی**: رویدادهای حساس با IP و User-Agent ثبت می‌شوند. سه logger جدا:
+  `rorschach.app`، `rorschach.audit`، `rorschach.security`.
+- **قیدهای دیتابیس**: یکتایی ایمیل (حساس‌نبودن به حروف)، یکتایی زوج رابطه، یکتایی
+  `(assessment, client_response_id)` برای idempotency و `(assessment, sequence)` برای
+  ترتیب پروتکل.
+- **پاک‌سازی به‌جای رد کردن**: کدگذاری ناشناخته دور ریخته می‌شود تا نسخه‌ی جلوتر
+  فرانت‌اند هرگز ۴۰۰ نگیرد.
 
-## ۶.۵. تصمیم‌های Docker
+## ۷. تصمیم‌های Docker
+
+خلاصه (شرح کامل در [[07-deployment-operations]] §۲):
 
 | تصمیم | چرا |
 |---|---|
-| **بدون `apt-get`** | تمام وابستگی‌ها wheel دارند (`psycopg[binary]`، Pillow، cryptography)، پس کامپایلر لازم نیست. نصب gcc از میرور دبیان کندترین و شکننده‌ترین مرحله‌ی build بود و روی شبکه‌ی محدود شکست می‌خورد |
-| healthcheck با `python -c urllib.request` | تا image به `curl` یا `wget` نیاز نداشته باشد |
-| `PIP_INDEX_URL` به‌صورت build arg | روی میزبان‌هایی که pypi.org در دسترس نیست، میرور بدهید |
-| اجرای غیر-root (`USER rorschach`) | در هر دو stage |
-| `RUN_MIGRATIONS=false` روی worker | مسابقه‌ی دو کانتینر روی `migrate` هنگام بالا آمدن دیتابیس تازه، راه واقعی deadlock است |
-| `init: true` | تا سیگنال‌ها درست به پروسه برسند و zombie باقی نماند |
-| Daphne به‌جای `runserver` | WebSocket چت به ASGI نیاز دارد |
-| فرانت‌اند بیرون از Docker | watch روی bind mount در ویندوز کند است؛ `npm start` خودش پروکسی می‌کند |
+| بدون `apt-get` | همه‌ی وابستگی‌ها چرخ manylinux دارند؛ نصب gcc کندترین و شکننده‌ترین مرحله بود |
+| healthcheck با `python -c urllib.request` | تا ایمیج به `curl` یا `wget` نیاز نداشته باشد |
+| `PIP_INDEX_URL` به‌صورت build arg | برای میزبان‌هایی که pypi.org در دسترس نیست |
+| اجرای غیر-root | در هر دو مرحله‌ی ساخت |
+| `RUN_MIGRATIONS=false` روی کارگر | مسابقه‌ی دو کانتینر روی `migrate` راه واقعی قفل‌شدن است |
+| `init: true` | تا سیگنال‌ها درست برسند و پروسه‌ی zombie نماند |
+| Daphne به‌جای `runserver` | چت WebSocket به ASGI نیاز دارد |
+| entrypoint در `/usr/local/bin` + نرمال‌سازی CRLF | bind mount مسیر `/app` را می‌پوشاند و چک‌اوت ویندوزی CRLF می‌دهد |
+| فرانت‌اند بیرون از Docker | پایش فایل روی bind mount در ویندوز کند است |
 
-`/health/` عمداً بیرون از `/api/v1/` است: زیرساخت است نه بخشی از قرارداد API، و چون پروسه‌ای که به PostgreSQL نمی‌رسد سالم نیست، دیتابیس را هم بررسی می‌کند.
+مسیر `/health/` عمداً بیرون از `/api/v1/` است: زیرساخت است نه بخشی از قرارداد، و
+چون پروسه‌ای که به PostgreSQL نمی‌رسد سالم نیست، دیتابیس را هم بررسی می‌کند.
 
-## ۷. کارهای باقی‌مانده
+## ۸. کارهای باقی‌مانده
 
 | مورد | توضیح |
 |---|---|
-| NGINX و compose تولیدی | reverse proxy، سرو استاتیک Angular، TLS — وقتی سرور آماده شد |
-| CI | فعلاً لازم نیست (سروری برای استقرار وجود ندارد)؛ `pytest` و `ruff` محلی اجرا می‌شوند |
-| تست خودکار WebSocket | consumer پیاده و **دستی در مرورگر تأیید شده** (اتصال، احراز هویت، تحویل `message.new`)، اما تست خودکار ندارد (نیازمند `pytest-asyncio` و `ChannelsLiveServer`) |
-| `AssessmentReport` | مدل هست، تولیدکننده ندارد — دقیقاً مثل Mock. تا وقتی قالب گزارش تعیین نشده، `report` همیشه `null` است |
-| بارگذاری avatar | در قرارداد فاز ۱ endpoint ندارد |
-| وزن‌ها و آستانه‌های R-PAS | همان مورد باز [[10-assessment-rpas]] §۸ — باید با دستورالعمل رسمی تطبیق داده شود |
-| ایندکس JSONB | طبق [[03-data-model-er]] §۱۲ تا مشخص‌شدن query pattern زده نشده است |
+| **اعمال `IsApprovedPsychologist`** | D-13 — تنها شکاف امنیتی شناخته‌شده |
+| NGINX و ترکیب production | پروکسی معکوس، سرو استاتیک Angular، TLS |
+| CI | فعلاً لازم نبوده؛ `pytest` و `ruff` محلی سبزند |
+| تست خودکار WebSocket | مصرف‌کننده پیاده و **دستی در مرورگر تأیید شده**، اما تست خودکار ندارد (نیازمند `pytest-asyncio` و `ChannelsLiveServer`) |
+| تولیدکننده‌ی `AssessmentReport` | مدل هست، تولیدکننده ندارد — تا تعیین قالب گزارش، `report` همیشه `null` است |
+| بارگذاری آواتار | در قرارداد اندپوینت ندارد؛ فقط مدارک تأیید بارگذاری می‌شوند |
+| وزن‌ها و آستانه‌های R-PAS | [[10-assessment-rpas]] §۸ — باید با دستورالعمل رسمی تطبیق داده شود |
+| ایندکس JSON | تا مشخص شدن الگوی کوئری زده نشده |
+| مانیتورینگ و پشتیبان‌گیری | [[07-deployment-operations]] §۹ و §۱۰ |
+| کارهای فرانت‌اند D-07 و D-09 | محدودیت بارگذاری و متن راهنمای رمز |

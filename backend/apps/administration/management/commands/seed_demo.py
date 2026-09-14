@@ -76,7 +76,7 @@ def _coding(location, determinants, form_quality, content, **extra):
 PAIR = [{"x": 0.3, "y": 0.5}, {"x": 0.7, "y": 0.5}]
 CENTER = [{"x": 0.5, "y": 0.5}]
 
-#: A complete, coded demo protocol (19 responses over the ten cards).
+#: A complete, coded demo protocol (18 responses over the ten cards).
 PROTOCOL = [
     (1, "یک خفاش", "کل لکه؛ بال‌ها این دو طرف‌اند و بدنش وسط.", None, _coding("W", ["F"], "o", ["A"], popular=True), 0),
     (1, "یک ماسک", "این سوراخ‌های سفید چشم‌هایش است.", None, _coding("W", ["F"], "o", ["(Hd)"], space=["SR"]), 0),

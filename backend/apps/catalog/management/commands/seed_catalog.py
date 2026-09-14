@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 "status": TestStatus.ACTIVE,
                 "coding_system": "R-PAS",
                 "methodology_reference": "Rorschach Performance Assessment System (R-PAS)",
-                "source_document": "documentation/09-Rorshach-analysis.md",
+                "source_document": "documentation/09-rorschach-analysis.md",
             },
         )
         self._say("تعریف آزمون", created)

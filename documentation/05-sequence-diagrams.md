@@ -1,11 +1,12 @@
 ---
 title: دیاگرام‌های رفتاری
 doc_id: DOC-05
-version: 1
-status: draft
-architecture_version: Architecture v1
-source: معماری رورشاخ - سندنگار Google.pdf
+version: 2
+status: as-built
+architecture_version: Architecture v2 — as-built
+code_revision: 10c22fe
 language: fa
+updated: 1405-06-23
 tags:
   - sequence
   - state-machine
@@ -14,224 +15,372 @@ related:
   - "[[01-requirements]]"
   - "[[02-architecture]]"
   - "[[04-api-design]]"
+  - "[[10-assessment-rpas]]"
 ---
+
 # ۰۵ — دیاگرام‌های رفتاری
+
+> همه‌ی دیاگرام‌های این سند با کد پیاده‌شده تطبیق داده شده‌اند: نام اندپوینت‌ها،
+> ترتیب گام‌ها و مرز تراکنش‌ها همان چیزی است که در
+> `backend/apps/*/services.py` اتفاق می‌افتد.
 
 ## ۱. ثبت‌نام و تأیید روان‌شناس
 
 ```mermaid
 sequenceDiagram
-    actor PS as Psychologist
+    actor PS as روان‌شناس
     participant FE as Angular
-    participant BE as Django + DRF
-    actor AD as Admin
+    participant BE as Django
+    actor AD as مدیر
 
-    PS->>FE: Register (نقش: روان‌شناس)
-    FE->>BE: POST /api/v1/auth/register/
-    BE-->>FE: REGISTERED
-    PS->>BE: ارسال مدارک حرفه‌ای
-    BE->>BE: verification_status = PENDING_VERIFICATION
-    AD->>BE: View psychologist / Verify documents
+    PS->>FE: ثبت‌نام با نقش روان‌شناس
+    FE->>BE: POST /auth/register/
+    BE->>BE: User + PsychologistProfile (REGISTERED)
+    BE-->>FE: 201 {access, me} + کوکی تمدید
+    FE-->>PS: هدایت به صفحه‌ی «در انتظار تأیید»
+
+    PS->>FE: انتخاب مدارک
+    FE->>BE: POST /psychologists/me/documents/ (multipart)
+    BE->>BE: اعتبارسنجی حجم و نوع · ذخیره · REGISTERED ← PENDING_VERIFICATION
+    BE->>BE: AuditLog(PSYCHOLOGIST_DOCUMENTS_UPLOADED)
+    BE-->>FE: 200 {me}
+
+    AD->>BE: GET /admin/psychologists/?verification_status=PENDING_VERIFICATION
     alt تأیید
-        AD->>BE: Approve
+        AD->>BE: POST /admin/psychologists/{id}/verify/ {decision: APPROVE}
         BE->>BE: APPROVED + AuditLog(PSYCHOLOGIST_PROFILE_APPROVED)
     else رد
-        AD->>BE: Reject
-        BE->>BE: REJECTED
+        AD->>BE: {decision: REJECT, note}
+        BE->>BE: REJECTED — روان‌شناس می‌تواند مدارک تازه بفرستد
+    else تعلیق
+        AD->>BE: {decision: SUSPEND, note}
+        BE->>BE: SUSPENDED
     end
 ```
 
-```mermaid
-stateDiagram-v2
-    [*] --> REGISTERED
-    REGISTERED --> PENDING_VERIFICATION
-    PENDING_VERIFICATION --> APPROVED
-    PENDING_VERIFICATION --> REJECTED
-```
+تا وقتی وضعیت `APPROVED` نشود، نگهبان `IsApprovedPsychologist` جلوی دسترسی به بخش
+بالینی را می‌گیرد و فرانت‌اند هم کاربر را روی صفحه‌ی انتظار نگه می‌دارد (BR-01).
 
-هر کسی نمی‌تواند خودش را روان‌شناس معرفی کند؛ این مرحله mandatory است. عملیات ادمین: View، Verify documents، Approve، Reject، Suspend.
-
-## ۲. برقراری رابطه Patient ↔ Psychologist
+## ۲. برقراری رابطه
 
 ```mermaid
 sequenceDiagram
-    actor P as Patient
-    participant BE as Backend
-    actor PS as Psychologist
+    actor P as مراجع
+    participant BE as Django
+    actor PS as روان‌شناس
 
-    P->>BE: جست‌وجوی روان‌شناس
-    P->>BE: POST /relationships/ (درخواست)
-    BE->>BE: status = PENDING + AuditLog(RELATIONSHIP_CREATED)
-    BE-->>PS: Notification
+    P->>BE: GET /psychologists/?search=…
+    BE-->>P: فهرست تأییدشده‌ها + وضعیت رابطه‌ی خودِ مراجع
+    P->>BE: POST /relationships/ {psychologist_id}
+    BE->>BE: بررسی APPROVED بودن و فعال بودن حساب
+    BE->>BE: ردیف PENDING (یا احیای ردیف قبلی) + AuditLog(RELATIONSHIP_CREATED)
+    BE-->>P: 201
+
+    PS->>BE: GET /relationships/?status=PENDING
     alt تأیید
-        PS->>BE: Approve
-        BE->>BE: status = ACTIVE + AuditLog(RELATIONSHIP_APPROVED)
+        PS->>BE: POST /relationships/{id}/approve/
+        BE->>BE: ACTIVE + ساخت گفت‌وگوی دونفره + AuditLog(RELATIONSHIP_APPROVED)
     else رد
-        PS->>BE: Reject
-        BE->>BE: status = REJECTED
+        PS->>BE: POST /relationships/{id}/reject/
+        BE->>BE: REJECTED + AuditLog(RELATIONSHIP_REJECTED)
     end
 ```
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING
-    PENDING --> ACTIVE: approve
-    PENDING --> REJECTED: reject
-    ACTIVE --> REVOKED: revoke
+    [*] --> PENDING: درخواست مراجع
+    PENDING --> ACTIVE: تأیید روان‌شناس
+    PENDING --> REJECTED: رد روان‌شناس
+    PENDING --> REVOKED: انصراف مراجع
+    ACTIVE --> REVOKED: لغو هر یک از دو طرف یا ادمین
+    REJECTED --> PENDING: درخواست دوباره
+    REVOKED --> PENDING: درخواست دوباره
 ```
+
+تصمیم درباره‌ی درخواست فقط کار روان‌شناس است؛ لغو را هر دو طرف یا ادمین می‌توانند
+انجام دهند.
 
 ## ۳. اجرای کامل آزمون
 
 ```mermaid
 sequenceDiagram
-    actor P as Patient
+    actor P as مراجع
     participant FE as Angular
-    participant BE as Django + DRF
+    participant BE as Django
     participant DB as PostgreSQL
-    participant OS as Object Storage
 
-    P->>FE: Start Assessment
-    FE->>BE: POST /assessments/sessions/
-    BE->>DB: session (CREATED) با test_definition_id + test_version_id + relationship
-    BE-->>FE: sessionId
+    P->>FE: «شروع آزمون»
+    FE->>BE: POST /assessments/sessions/ {psychologist_id}
+    BE->>DB: جلسه‌ی CREATED با سه‌گانه‌ی مراجع/روان‌شناس/رابطه + نسخه‌ی منتشرشده
+    BE-->>FE: 201 {session}
+
     FE->>BE: POST /sessions/{id}/start/
-    BE->>DB: status = IN_PROGRESS + AuditLog(PATIENT_STARTED_ASSESSMENT)
-    BE-->>FE: current phase / card / step
+    BE->>DB: IN_PROGRESS · مرحله=RESPONSE · کارت=۱ + AuditLog(PATIENT_STARTED_ASSESSMENT)
+    BE-->>FE: RunState (stage=RESPONSE، کارت ۱ از ۱۰)
 
-    loop برای هر Card
-        FE->>OS: دریافت تصویر کارت
-        FE->>FE: شروع تایمر (client_started_at)
-        FE->>BE: save draft (debounced)
+    loop کارت ۱ تا ۱۰
+        FE-->>P: نمایش کارت و پرسش استاندارد
+        Note over FE: تایمر واکنش و پیش‌نویس در localStorage
+        P->>FE: نوشتن پاسخ و Enter
         FE->>BE: POST /sessions/{id}/responses/ + client_response_id
-        BE->>DB: ثبت response + measurement_data + timing سروری
+        BE->>DB: ثبت پاسخ با زمان سرور و measurement_data
+        BE-->>FE: 201 {response, state}
+        P->>FE: «کارت بعدی»
         FE->>BE: POST /sessions/{id}/next/
-        BE-->>FE: وضعیت بعدی (مرجع: Backend)
+        alt فقط یک پاسخ و یادآوری داده نشده
+            BE-->>FE: {prompt: true, state}
+            FE-->>P: متن استاندارد یادآوری — بدون پیشروی
+        else
+            BE->>DB: کارت بعد، یا در کارت دهم: مرحله ← CLARIFICATION
+            BE-->>FE: {prompt: false, state}
+        end
+    end
+
+    loop پاسخ ۱ تا R
+        FE-->>P: کارت + متن خود فرد + پرسش «چه چیزی باعث شد این‌طور به نظر برسد؟»
+        P->>FE: علامت‌گذاری محل + انتخاب دلایل + توضیح اختیاری
+        FE->>BE: POST /sessions/{id}/clarifications/ {response_id, whole, location_marks, reasons, text}
+        BE->>DB: ذخیره در ستون clarification — بدون دست زدن به response_text (BR-06)
+        BE-->>FE: RunState (گام بعدی یا REVIEW)
     end
 
     FE->>BE: POST /sessions/{id}/complete/
-    BE->>DB: transaction → COMPLETED + analysis event + notification event
-    BE-->>FE: Assessment completed successfully
+    BE-->>FE: RunState (stage=COMPLETED)
+    FE-->>P: «آزمون با موفقیت ثبت شد» — و نه چیز دیگری (BR-14)
 ```
 
-```mermaid
-stateDiagram-v2
-    [*] --> CREATED
-    CREATED --> IN_PROGRESS: start
-    IN_PROGRESS --> PAUSED: pause
-    IN_PROGRESS --> COMPLETED: finish
-    PAUSED --> IN_PROGRESS: resume
-```
-
-وضعیت‌های کامل: `CREATED`، `IN_PROGRESS`، `PAUSED`، `COMPLETED`، `ABANDONED`، `CANCELLED`.
-
-## ۴. Pause / Resume و بازیابی پس از crash
+## ۴. ادامه پس از بستن مرورگر
 
 ```mermaid
 sequenceDiagram
-    actor P as Patient
+    actor P as مراجع
     participant FE as Angular
-    participant BE as Backend
+    participant BE as Django
 
-    Note over P,FE: کاربر روی Card 4 است و مرورگر بسته می‌شود
-    P->>FE: Login مجدد
-    FE->>BE: GET /assessments/sessions/{id}/
-    BE-->>FE: Session: Phase 1 / Card 4 / Step 2
-    FE-->>P: Continue Assessment
+    Note over P,FE: کاربر روی کارت ۴ است؛ مرورگر بسته می‌شود
+    FE->>BE: POST /sessions/{id}/events/ {type: TAB_HIDDEN}
+    Note over BE: شمارنده‌ی مشاهده‌ی اجرایی
+
+    P->>FE: ورود دوباره
+    FE->>BE: GET /assessments/sessions/?status=IN_PROGRESS
+    BE-->>FE: جلسه‌ی باز
+    FE-->>P: «ادامه‌ی آزمون»
     P->>FE: ادامه
-    FE->>BE: POST /sessions/{id}/resume/
-    BE-->>FE: IN_PROGRESS
+    FE->>BE: GET /sessions/{id}/state/
+    BE->>BE: build_state() از روی status + current_phase + current_card + current_step
+    BE-->>FE: RunState — دقیقاً کارت ۴
 ```
 
-Frontend باید state را با Backend سینک کند (`Frontend State ↕ Backend State`)، نه اینکه frontend حقیقت نهایی باشد.
+هیچ «حالت ذخیره‌شده‌ای» برای بازیابی وجود ندارد که بتواند خراب شود: مرحله در هر
+درخواست از نو محاسبه می‌شود (BR-05). پیش‌نویس متن ثبت‌نشده در `localStorage` مرورگر
+است و پس از ثبت یا پایان آزمون پاک می‌شود.
 
-## ۵. ثبت پاسخ تکراری (Idempotency)
+## ۵. ثبت تکراری پاسخ (idempotency)
 
 ```mermaid
 sequenceDiagram
     participant FE as Angular
-    participant BE as Backend
+    participant BE as Django
     participant DB as PostgreSQL
 
     FE->>BE: POST /responses/ (client_response_id = X)
     BE->>DB: INSERT
-    Note over FE,BE: قطعی شبکه — پاسخ به کلاینت نمی‌رسد
-    FE->>BE: ارسال مجدد همان درخواست (client_response_id = X)
-    BE->>DB: INSERT → نقض unique constraint
-    BE-->>FE: همان response قبلی (بدون رکورد تکراری)
+    DB-->>BE: OK
+    BE--xFE: قطعی شبکه — پاسخ به کلاینت نمی‌رسد
+    Note over FE: تلاش مجدد خودکار (۳ بار، فاصله‌ی پلکانی)
+    FE->>BE: POST /responses/ (همان client_response_id = X)
+    BE->>DB: SELECT ... WHERE client_response_id = X
+    DB-->>BE: رکورد موجود
+    BE-->>FE: 201 با همان پاسخ — بدون رکورد تکراری
 ```
 
-## ۶. تکمیل آزمون: transaction و رویدادها
+اگر دو تلاش **هم‌زمان** برسند، مسیر سریع هر دو خالی است و هر دو INSERT می‌زنند؛
+آن‌گاه قید یکتایی `unique_assessment_client_response` یکی را رد می‌کند و کد،
+`IntegrityError` را می‌گیرد و رکورد برنده را می‌خواند. یعنی تضمین در **دیتابیس**
+است نه در منطق برنامه (BR-07).
+
+## ۶. تکمیل آزمون: تراکنش و کار پس از commit
 
 ```mermaid
 sequenceDiagram
-    participant BE as Backend
+    participant BE as services.complete()
     participant DB as PostgreSQL
-    participant EV as Event / Celery
-    participant WS as WebSocket
+    participant Q as Celery
+    participant W as Worker
 
     BE->>DB: BEGIN
-    BE->>DB: update session → COMPLETED
-    BE->>DB: create analysis job/event
-    BE->>DB: create notification event
-    BE->>DB: COMMIT
-    Note over BE,DB: در صورت خطا ROLLBACK تا session نصفه نماند
-    DB-->>EV: Event پس از commit
-    EV->>EV: notification
-    EV->>EV: report generation
-    EV->>WS: websocket update
+    BE->>DB: SELECT ... FOR UPDATE (قفل جلسه)
+    alt از قبل COMPLETED
+        BE-->>BE: بازگشت بی‌اثر (BR-08)
+    else
+        BE->>BE: بررسی stage == REVIEW وگرنه 409
+        BE->>DB: status ← COMPLETED · completed_at
+        BE->>DB: AssessmentAnalysis(status=PENDING) — get_or_create
+        BE->>DB: AuditLog(PATIENT_COMPLETED_ASSESSMENT)
+        BE->>DB: COMMIT
+    end
+    Note over BE,DB: در صورت خطا ROLLBACK — جلسه نیمه‌تمام نمی‌ماند (BR-09)
+    BE->>Q: on_commit → generate_analysis.delay(session_id)
+    Q->>W: اجرای تحلیل
+    W->>DB: calculated_data + status=DONE
 ```
 
-Assessment و Chat/Notification در یک transaction قرار نمی‌گیرند؛ تکمیل آزمون نباید منتظر ارسال اعلان یا رویداد چت بماند. `COMPLETED` ترمینال است تا تکرار درخواست دو report یا دو notification نسازد.
+سه نکته‌ی طراحی در این دیاگرام:
 
-## ۷. مشاهده نتیجه توسط روان‌شناس
+1. **قفل صریح** (`SELECT ... FOR UPDATE`) تا دو کلیک هم‌زمان «ثبت نهایی» دو تحلیل
+   نسازند.
+2. **صف پس از commit** است، نه داخل تراکنش. اگر داخل تراکنش بود، worker می‌توانست
+   پیش از commit اجرا شود و جلسه را پیدا نکند (BR-10).
+3. **مسیر پشتیبان:** اگر worker خاموش باشد، `ensure_analysis()` هنگام نخستین خواندن
+   پروتکل، تحلیل را همان‌جا محاسبه می‌کند. محاسبه‌ی متغیرهای خام چند ده سطر حساب روی
+   حداکثر چند ده ردیف است و هزینه‌ای ندارد.
+
+## ۷. کدگذاری و تحلیل توسط روان‌شناس
 
 ```mermaid
 sequenceDiagram
-    actor PS as Psychologist
-    participant BE as Backend
+    actor PS as روان‌شناس
+    participant BE as Django
     participant DB as PostgreSQL
 
-    PS->>BE: GET /assessments/{id}
-    BE->>BE: Authentication (identity)
-    BE->>DB: بررسی رابطه و مالکیت
-    alt Owner یا روان‌شناس مرتبط یا Admin
-        BE->>DB: AuditLog(PSYCHOLOGIST_VIEWED_ASSESSMENT)
-        BE-->>PS: Raw Responses · Measurements · Calculated Parameters · Report
-    else غیرمجاز
-        BE-->>PS: DENY
+    PS->>BE: GET /sessions/{id}/detail/
+    BE->>BE: readable_session() — مالک؟ روان‌شناسِ ACTIVE؟ ادمین؟
+    BE->>DB: AuditLog(PSYCHOLOGIST_VIEWED_ASSESSMENT)
+    BE->>BE: ensure_analysis()
+    BE-->>PS: جلسه + کارت‌ها + پاسخ‌ها + تحلیل
+
+    loop برای هر پاسخ
+        PS->>BE: PUT /sessions/{id}/responses/{rid}/coding/
+        BE->>BE: normalize_coding() — کدهای ناشناخته دور ریخته می‌شوند
+        BE->>DB: ستون coding + coded_by + coded_at (بدون دست زدن به متن خام)
+        BE->>DB: AuditLog(RESPONSE_CODED)
     end
+
+    PS->>BE: POST /sessions/{id}/analysis/
+    BE->>BE: compute_rpas(responses, administration)
+    BE->>DB: calculated_data + algorithm_version + status=DONE
+    BE->>DB: AuditLog(ANALYSIS_GENERATED)
+    BE-->>PS: متغیرها در پنج حوزه + یافته‌های غیرقطعی + هشدارها
 ```
 
-بیمار پس از completion فقط «Assessment completed successfully» را می‌بیند؛ raw/coded data صرفاً برای روان‌شناس نمایش داده می‌شود.
+کدگذاری پیش از تکمیل آزمون `409` می‌گیرد، و روان‌شناسی که مالک جلسه نیست `403`.
 
-## ۸. چت و اعلان
-
-```mermaid
-sequenceDiagram
-    actor A as User A
-    participant BE as Django + Channels
-    actor B as User B
-
-    A->>BE: GET /conversations/
-    A->>BE: GET /messages/
-    A->>BE: POST /messages/
-    BE-->>B: WS: new message
-    A-->>BE: WS: typing
-    B-->>BE: WS: read receipt
-    BE-->>A: WS: online status
-```
-
-## ۹. Critical Path (End-to-End)
+## ۸. مجوز دسترسی در سطح شیء
 
 ```mermaid
 flowchart TD
-    R[Register] --> L[Login]
-    L --> S[Select psychologist]
-    S --> ST[Start assessment]
-    ST --> AC[Answer cards]
-    AC --> C[Complete]
-    C --> PL[Psychologist login]
-    PL --> V[View assessment]
+    R["GET /assessments/sessions/{id}/detail/"] --> AU{"توکن معتبر؟"}
+    AU -->|خیر| E1["401 — احراز هویت لازم است"]
+    AU -->|بله| RO{"نقش روان‌شناس یا ادمین؟"}
+    RO -->|خیر| E2["403"]
+    RO -->|بله| EX{"جلسه وجود دارد؟"}
+    EX -->|خیر| E3["404"]
+    EX -->|بله| OW{"ادمین؟"}
+    OW -->|بله| OK["200"]
+    OW -->|خیر| LK{"روان‌شناسِ همین جلسه<br/>و رابطه هنوز ACTIVE؟"}
+    LK -->|خیر| E4["403"]
+    LK -->|بله| AL["AuditLog"] --> OK
 ```
 
-این مسیر، critical path سیستم است و باید به‌صورت end-to-end تست شود.
+دو لایه پشت سر هم: کلاس مجوز نقش پیش از ورود به view، و بررسی سطح شیء داخل آن.
+لغو رابطه بلافاصله دسترسی را می‌بندد ولی داده حذف نمی‌شود (BR-12 در برابر BR-13).
+
+## ۹. چت و بلادرنگ
+
+```mermaid
+sequenceDiagram
+    actor A as کاربر الف
+    participant FE_A as مرورگر الف
+    participant BE as Django + Channels
+    participant FE_B as مرورگر ب
+    actor B as کاربر ب
+
+    FE_A->>BE: اتصال به /ws/
+    FE_A->>BE: {"type":"auth","token":"…"}
+    BE->>BE: group_add("user.A") + mark_online
+    BE-->>FE_B: {"type":"presence","user_id":"A","is_online":true}
+
+    A->>FE_A: نوشتن پیام
+    FE_A->>BE: POST /conversations/{id}/messages/
+    BE->>BE: ذخیره‌ی پیام + به‌روزرسانی updated_at گفت‌وگو
+    BE-->>FE_A: 201 {message}
+    BE-->>FE_B: {"type":"message.new","message":{…}}
+
+    B->>FE_B: باز کردن گفت‌وگو
+    FE_B->>BE: POST /conversations/{id}/read/
+    BE-->>FE_A: {"type":"message.read","conversation_id":"…","read_at":"…"}
+
+    A->>FE_A: تایپ کردن
+    FE_A->>BE: {"type":"typing","conversation_id":"…"}
+    BE-->>FE_B: {"type":"typing","user_id":"A"}
+```
+
+نوشتن همیشه REST است و سوکت فقط اطلاع می‌دهد؛ بنابراین قواعد مجوز فقط در یک جا
+نوشته شده‌اند. اگر ارسال روی سوکت شکست بخورد، درخواست REST همچنان موفق است.
+
+## ۱۰. تمدید خودکار نشست
+
+```mermaid
+sequenceDiagram
+    participant FE as auth.interceptor
+    participant BE as Django
+
+    FE->>BE: GET /assessments/sessions/ (Bearer توکن منقضی)
+    BE-->>FE: 401
+    FE->>BE: POST /auth/refresh/ (کوکی HttpOnly خودکار می‌رود)
+    alt کوکی معتبر
+        BE->>BE: ابطال توکن قبلی + صدور توکن تازه (چرخش)
+        BE-->>FE: 200 {access} + کوکی تازه
+        FE->>BE: تکرار درخواست اصلی با توکن تازه
+        BE-->>FE: 200
+    else کوکی نامعتبر یا منقضی
+        BE-->>FE: 401 «نشست منقضی شده است.»
+        FE->>FE: پاک کردن حالت و هدایت به صفحه‌ی ورود
+    end
+```
+
+تمدید فقط **یک بار** برای هر درخواست تلاش می‌شود تا حلقه‌ی بی‌پایان شکل نگیرد.
+
+## ۱۱. مسیر بحرانی end-to-end
+
+```mermaid
+flowchart LR
+    R["ثبت‌نام مراجع و روان‌شناس"] --> V["تأیید روان‌شناس توسط ادمین"]
+    V --> L["ورود"] --> S["درخواست و تأیید ارتباط"]
+    S --> ST["شروع آزمون"] --> AC["پاسخ به ۱۰ کارت"]
+    AC --> CP["روشن‌سازی هر پاسخ"] --> C["ثبت نهایی"]
+    C --> PL["ورود روان‌شناس"] --> VW["مشاهده‌ی پروتکل"]
+    VW --> CO["کدگذاری"] --> AN["تحلیل"]
+```
+
+این مسیر به‌صورت **یک تست خودکار و فقط از راه HTTP** پیاده شده است:
+`backend/apps/assessments/tests/test_critical_path.py`. هیچ‌جای آن به لایه‌ی سرویس
+مستقیم دست نمی‌زند، پس اگر قرارداد API بشکند، همین تست شکست می‌خورد.
+
+## ۱۲. حالت‌ها در یک نگاه
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "تأیید روان‌شناس" as V {
+        [*] --> REGISTERED
+        REGISTERED --> PENDING_VERIFICATION
+        PENDING_VERIFICATION --> APPROVED
+        PENDING_VERIFICATION --> REJECTED
+        REJECTED --> PENDING_VERIFICATION
+        APPROVED --> SUSPENDED
+    }
+    state "رابطه" as R {
+        [*] --> PENDING
+        PENDING --> ACTIVE
+        PENDING --> REJECTED2
+        ACTIVE --> REVOKED
+    }
+    state "مرحله‌ی اجرا" as G {
+        [*] --> INTRO
+        INTRO --> RESPONSE
+        RESPONSE --> CLARIFICATION
+        CLARIFICATION --> REVIEW
+        REVIEW --> COMPLETED2
+    }
+```

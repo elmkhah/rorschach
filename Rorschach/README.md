@@ -1,59 +1,69 @@
-# Rorschach
+# Rorschach — Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.5.
+Angular 20 SPA for the Rorschach (R-PAS) assessment platform: public site,
+patient dashboard and assessment runner, psychologist workspace, admin panel.
 
-## Development server
+Architecture and UI decisions are documented in
+[`documentation/08-frontend.md`](../documentation/08-frontend.md) (Persian); the
+API contract this app consumes is in
+[`documentation/04-api-design.md`](../documentation/04-api-design.md).
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Run
 
 ```bash
-ng generate component component-name
+npm ci
+npm start      # http://localhost:4200 — proxies /api and /ws to http://127.0.0.1:8000
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The backend must be running (`docker compose up -d --build` from the repository
+root). To run the app standalone against the built-in mock backend, set
+`useMock: true` in `src/environments/environment.development.ts`.
 
 ```bash
-ng generate --help
+npm run build                                          # production build (no mock code)
+npx ng test --watch=false --browsers=ChromeHeadless    # 12 tests
 ```
 
-## Building
+## Stack
 
-To build the project run:
+| Concern | Choice |
+| --- | --- |
+| Framework | Angular 20 — Standalone Components, Signals, `OnPush` |
+| Styling | Tailwind CSS 4 + daisyUI 5, custom `rorschach` theme in `src/styles.css` |
+| Language | Persian, RTL, YekanBakh font (8 weights), Jalali dates, Persian digits |
+| Auth | access token in memory only; refresh token in an `HttpOnly` cookie |
+| Realtime | one WebSocket at `/ws/`, authenticated on the first frame |
 
-```bash
-ng build
+## Layout
+
+```
+src/app/
+├── core/       auth · guards · interceptors · api · models · rpas · mock · services
+├── shared/     ui · components · pipes · utils · pages
+├── layouts/    public · dashboard · focus
+└── features/   landing · auth · profile · patient · psychologist · assessment · chat · admin
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Two rules hold everywhere:
 
-## Running unit tests
+- **No component talks to `HttpClient` directly** — every call goes through
+  `core/api/*`. This is what made swapping the mock for the real backend a
+  three-line change.
+- **The assessment runner mirrors the server, it does not lead it.** Every step
+  is a request; the server's `RunState` replaces local state. The client never
+  decides which card comes next.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## The mock backend
 
-```bash
-ng test
-```
+`src/app/core/mock/` is a complete implementation of the same `/api/v1` contract:
+router, handlers, seed data and the R-PAS scoring algorithm. It was the executable
+specification the Django backend was written against, and it still backs three of
+the unit test suites. Production builds replace `mock.providers.ts` with
+`mock.providers.prod.ts`, so no mock code ships.
 
-## Running end-to-end tests
+## Images
 
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Drop files under `public/images/…` and the dashed placeholders disappear on their
+own — no code change needed. The expected paths are listed in
+`src/app/shared/utils/images.ts`; the test card images
+(`public/images/test/1.jpg … 10.jpg`) are already in place.

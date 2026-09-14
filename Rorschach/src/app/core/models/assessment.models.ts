@@ -1,5 +1,5 @@
 // Assessment engine contract — Rorschach administered and coded per R-PAS
-// (docs/09-Roreshach-analysis.md, docs/10-assessment-rpas.md).
+// (docs/09-rorschach-analysis.md, docs/10-assessment-rpas.md).
 
 export type TestStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 

@@ -1,157 +1,271 @@
 ---
 title: نمای کلی پروژه
 doc_id: DOC-00
-version: 1.0
-status: draft
-architecture_version: Architecture v1
-source: "معماری رورشاخ - سندنگار Google.pdf"
+version: 2
+status: as-built
+architecture_version: Architecture v2 — as-built
+code_revision: 10c22fe
 language: fa
+updated: 1405-06-23
 tags:
   - overview
   - architecture
   - rorschach
+  - r-pas
 related:
   - "[[01-requirements]]"
   - "[[02-architecture]]"
   - "[[03-data-model-er]]"
   - "[[04-api-design]]"
-  - "[[05-sequence-diagrams]]"
-  - "[[06-development-guide]]"
-  - "[[07-deployment-operations]]"
+  - "[[10-assessment-rpas]]"
+  - "[[13-traceability]]"
 ---
 
 # ۰۰ — نمای کلی پروژه
 
-## ۱. معرفی
+## ۱. صورت مسئله
 
-پلتفرم وب اجرای آزمون روان‌شناختی **رورشاخ** با سه نقش بیمار، روان‌شناس و ادمین. بیمار آزمون را آنلاین اجرا می‌کند، داده‌های خام و اندازه‌گیری‌ها ذخیره می‌شوند و نتیجه در اختیار روان‌شناس مرتبط قرار می‌گیرد.
+آزمون رورشاخ یکی از شناخته‌شده‌ترین آزمون‌های **فرافکن** روان‌شناسی است: به فرد ده کارت
+لکه‌ی جوهر نشان می‌دهند و از او می‌پرسند «این چه چیزی می‌تواند باشد؟». اجرای سنتی آن
+کاغذی است و سه مشکل دارد:
 
-**مهم‌ترین تصمیم معماری:** Assessment Engine از بقیه‌ی اپلیکیشن جدا و versionable طراحی می‌شود، نه چند صفحه‌ی Angular با چند API ساده. اگر بعدها منابع آزمون، پارامترها، مراحل، scoring یا methodology تغییر کند، هسته‌ی سیستم نباید بازنویسی شود.
+1. **ثبت داده‌ی اجرایی دقیق نیست** — زمان واکنش، تعداد چرخاندن کارت، تعداد یادآوری‌ها،
+   همگی به حافظه و دست‌نویس آزمونگر وابسته‌اند.
+2. **کدگذاری و محاسبه‌ی متغیرها دستی است** — ده‌ها متغیر باید از روی کدهای هر پاسخ
+   جمع، وزن‌دهی و نسبت‌گیری شوند؛ کاری وقت‌گیر و مستعد خطای حسابی.
+3. **پرونده‌ها پراکنده‌اند** — پاسخ خام، کدگذاری، محاسبات و یادداشت بالینی در جاهای
+   مختلف می‌مانند و ردیابی تاریخچه‌ی یک مراجع دشوار است.
 
-## ۲. معماری در یک نگاه
+**سامانه‌ی رورشاخ** یک پلتفرم وب است که اجرای آزمون را برای مراجع آنلاین می‌کند،
+داده‌ی خام و اندازه‌گیری‌های اجرایی را با زمان سرور ثبت می‌کند، ابزار کدگذاری استاندارد
+را در اختیار روان‌شناس می‌گذارد و متغیرهای سطح پروتکل را خودکار محاسبه می‌کند.
+
+> ‏**سیستم ادعای تشخیص روان‌شناختی ندارد** (BR-18). خروجی تحلیل، مجموعه‌ای از متغیرهای
+> خام و یافته‌های «غیرقطعی» با ذکر مبنا و سطح اطمینان است؛ قضاوت بالینی بر عهده‌ی
+> روان‌شناس است. جزئیات در [[10-assessment-rpas]] §۷.
+
+## ۲. وضعیت پروژه در یک نگاه
+
+| شاخص | مقدار |
+|---|---|
+| Backend | Django 6.0 + DRF 3.18 — ۱۰ اپ دامنه‌ای، ۲۰ جدول، ۴۹ مسیر API |
+| Frontend | Angular 20 — Standalone + Signals، ۹ feature، ۳۰ صفحه |
+| قرارداد API | `/api/v1/` — فرانت‌اند و بک‌اند روی یک قرارداد یکسان، بدون آداپتور میانی |
+| بلادرنگ | Django Channels روی ASGI — یک اندپوینت `/ws/` برای چت و حضور |
+| تست | ۱۲۹ تست pytest (سبز)، شامل تست end-to-end مسیر بحرانی |
+| کیفیت کد | ruff بدون خطا (۸ گروه قاعده‌ی فعال، سطر ۱۱۰ کاراکتر) |
+| اجرا | `docker compose up -d --build` → PostgreSQL + Redis + Django + Celery |
+| هنوز نیست ⛔ | NGINX، TLS، CI، مانیتورینگ، پشتیبان‌گیری، تولیدکننده‌ی گزارش نهایی |
+
+سیر تحول پروژه در سه مرحله بوده است: **(۱)** نوشتن اسناد طراحی پیش از کد ←
+**(۲)** پیاده‌سازی کامل Frontend روی یک **Mock Backend** که مرجع رفتاری شد ←
+**(۳)** پیاده‌سازی Backend واقعی روی همان قرارداد و تأیید اتصال در مرورگر.
+دلیل این ترتیب و نتیجه‌اش در [[11-backend-notes]] آمده است.
+
+## ۳. معماری در یک نگاه
 
 ```mermaid
 flowchart TD
-    B["Browser<br/>Desktop / Mobile"] -->|HTTPS| N["NGINX<br/>TLS / Static / Proxy"]
-    N --> A["Angular 20<br/>Public · Patient · Psychologist · Admin"]
-    A -->|REST / WebSocket| D["Django + DRF<br/>Auth · Profiles · Relationships<br/>Assessment Engine · Reports<br/>Chat · Notifications · Admin"]
-    D --> PG["PostgreSQL<br/>Relational + JSONB"]
-    D --> R["Redis<br/>Cache · Rate limit · Jobs · WS"]
-    D --> S["Object Storage<br/>Rorschach imgs · Avatars · Files"]
+    B["مرورگر — دسکتاپ و موبایل"] -->|HTTP / WS| A["Angular 20<br/>Public · Patient · Psychologist · Admin"]
+    A -->|"REST /api/v1"| D
+    A -->|"WebSocket /ws"| D
+    D["Django 6 + DRF روی ASGI/Daphne<br/>accounts · profiles · relationships · catalog<br/>assessments · messaging · notifications<br/>media · audit · administration"]
+    D --> PG[("PostgreSQL 17<br/>رابطه‌ای + JSONB")]
+    D --> R[("Redis 7<br/>Cache · Channel layer · Celery broker")]
+    D --> C["Celery worker<br/>تحلیل پس از تکمیل آزمون"]
+    D -.->|production| S[("Object Storage<br/>S3-compatible")]
+    C --> PG
 ```
 
-سبک معماری: **Modular Monolith** — یک Django application با domainهای کاملاً جدا (accounts، relationships، assessments، messaging، notifications، admin). Microservice در این مرحله فقط networking و consistency را سخت‌تر می‌کند؛ اگر بعداً Chat یا Assessment scale متفاوتی پیدا کرد، همان domain جدا می‌شود.
+سبک معماری: **Modular Monolith** — یک اپلیکیشن Django با domainهای کاملاً جدا.
+Microservice در این مقیاس فقط networking و consistency را سخت‌تر می‌کرد؛ مرزها آن‌قدر
+تمیز کشیده شده‌اند که اگر روزی Chat یا Assessment بار متفاوتی پیدا کند، همان domain
+قابل جدا شدن باشد.
 
-## ۳. Bounded Contextها
+**مهم‌ترین تصمیم معماری:** موتور آزمون (Assessment Engine) از بقیه‌ی اپلیکیشن جدا و
+**نسخه‌پذیر** طراحی شد، نه به‌صورت چند صفحه‌ی Angular با چند API ساده. ساختار آزمون
+(مراحل، کارت‌ها، پیکربندی هر کارت) داده است نه کد؛ بنابراین تغییر روش‌شناسی، افزودن
+کارت یا تغییر پارامترها به بازنویسی هسته نیاز ندارد.
 
-| Context | مسئولیت‌ها |
+## ۴. Bounded Contextها و نگاشت آن‌ها به کد
+
+| Context | اپ Django | مسئولیت |
+|---|---|---|
+| Identity & Access | `apps/accounts` | مدل `User`، ورود/ثبت‌نام/تمدید نشست، نقش |
+| Patient / Psychologist | `apps/profiles` | پروفایل دو نقش، مدارک تأیید، افتخارات، فهرست روان‌شناسان |
+| Relationship | `apps/relationships` | ارتباط مراجع ↔ روان‌شناس، مبنای مجوز دسترسی |
+| Test Catalog | `apps/catalog` | تعریف آزمون ← نسخه ← مرحله ← کارت |
+| Assessment | `apps/assessments` | ماشین حالت اجرا، پاسخ‌ها، کدگذاری، تحلیل (`rpas/`) |
+| Communication | `apps/messaging` | گفت‌وگو، پیام، WebSocket، حضور |
+| Notification | `apps/notifications` | اطلاعیه‌ی عمومی سایت |
+| Media | `apps/media` | متادیتای فایل‌ها (`MediaAsset`) |
+| Audit | `apps/audit` | جدول ممیزی و میان‌افزار حمل IP و User-Agent |
+| Administration | `apps/administration` | پنل ادمین: کاربران، تأیید، نسخه‌ی آزمون، اطلاعیه، ممیزی |
+
+مدل `User` عمداً کوچک نگه داشته شده تا احراز هویت با پروفایل دامنه قاطی نشود:
+هویت در `users` و اطلاعات نقش در `patient_profiles` / `psychologist_profiles`.
+
+## ۵. نقش‌ها
+
+| نقش | توضیح |
 |---|---|
-| Identity & Access | User، Authentication، Authorization، Role |
-| Patient / Psychologist | Profiles، Achievements |
-| Relationship | ارتباط Patient ↔ Psychologist، Access control |
-| Assessment | Test Definition، Versioning، Session، Phase، Card، Response، Measurements، Scoring |
-| Communication | Conversation، Message |
-| Notification | Site notices، User notifications |
-| Administration | تأیید روان‌شناس، پیکربندی آزمون، مدیریت کاربران، اطلاعیه‌ها، Audit logs |
+| `PATIENT` | مراجع؛ آزمون را اجرا می‌کند و فقط پاسخ‌های خودش را می‌بیند |
+| `PSYCHOLOGIST` | پس از تأیید ادمین، مراجعان مرتبط و پروتکل کامل آن‌ها را می‌بیند و کدگذاری می‌کند |
+| `ADMIN` | تأیید روان‌شناس، مدیریت کاربران و آزمون، اطلاعیه، ممیزی — کاربر عادی سایت نیست |
 
-## ۴. نقش‌ها
-
-در مستندات اولیه دو role وجود داشت (PATIENT، PSYCHOLOGIST)، اما معماری role سوم را هم لازم دارد: **ADMIN** — که کاربر عادی سایت نیست.
-
-تأیید روان‌شناس mandatory است؛ هر کسی نمی‌تواند خودش را روان‌شناس معرفی کند:
+تأیید روان‌شناس **اجباری** است (BR-01)؛ کسی نمی‌تواند خودش را روان‌شناس اعلام کند:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> REGISTERED
-    REGISTERED --> PENDING_VERIFICATION
-    PENDING_VERIFICATION --> APPROVED
-    PENDING_VERIFICATION --> REJECTED
+    [*] --> REGISTERED: ثبت‌نام
+    REGISTERED --> PENDING_VERIFICATION: بارگذاری مدارک
+    PENDING_VERIFICATION --> APPROVED: تأیید ادمین
+    PENDING_VERIFICATION --> REJECTED: رد ادمین
+    REJECTED --> PENDING_VERIFICATION: بارگذاری مدارک تازه
+    APPROVED --> SUSPENDED: تعلیق توسط ادمین
 ```
 
-## ۵. هسته‌ی Assessment
+> حالت `SUSPENDED` در سند طراحی اولیه نبود، اما پنل ادمین سه تصمیم دارد
+> (`APPROVE` / `REJECT` / `SUSPEND`)، پس یک حالت واقعی است و در مدل وجود دارد.
+
+## ۶. هسته‌ی آزمون
 
 ```mermaid
 flowchart LR
-    TD[TestDefinition] --> TV[TestVersion] --> AS[AssessmentSession] --> RS[Responses]
+    TD["TestDefinition<br/>RORSCHACH"] --> TV["TestVersion<br/>v1.0"]
+    TV --> P1["TestPhase<br/>RESPONSE"]
+    TV --> P2["TestPhase<br/>CLARIFICATION"]
+    P1 --> C["AssessmentCard ×۱۰"]
+    TV --> AS["AssessmentSession"]
+    AS --> RS["AssessmentResponse"]
+    RS --> AN["AssessmentAnalysis"]
 ```
 
-هر TestVersion شامل Phase و Card است، و هر Assessment نسخه‌ای که با آن اجرا شده را **immutable** نگه می‌دارد (v1.0 / v1.1 / v2.0).
+هر جلسه علاوه بر شناسه‌ی تعریف آزمون، حتماً شناسه‌ی **نسخه** را هم ثبت می‌کند و
+نسخه‌ی منتشرشده **تغییرناپذیر** است (BR-04). ویرایش یک نسخه‌ی منتشرشده ممکن نیست؛
+ادمین آن را clone می‌کند، نسخه‌ی پیش‌نویس را ویرایش و سپس منتشر می‌کند.
 
-آزمون stateful است:
+### دو ماشین حالت، نه یکی
+
+این تفکیک برای فهم سیستم کلیدی است:
+
+| ماشین | کجاست | چه می‌گوید |
+|---|---|---|
+| `SessionStatus` | ستون `status` در دیتابیس | چرخه‌ی عمر کلی جلسه: `CREATED` · `IN_PROGRESS` · `PAUSED` · `COMPLETED` · `ABANDONED` · `CANCELLED` |
+| `stage` (RunState) | **محاسبه‌شده** در `backend/apps/assessments/state.py` | کاربر دقیقاً کجای اجراست: `INTRO` ← `RESPONSE` ← `CLARIFICATION` ← `REVIEW` ← `COMPLETED` |
+
+مقدار `stage` هرگز ذخیره نمی‌شود؛ در هر درخواست از روی `status`، `current_phase`،
+`current_card` و `current_step` بازمحاسبه می‌شود. نتیجه این است که تازه‌سازی مرورگر،
+بستن تب، یا باز کردن تب دوم همیشه به یک پاسخ واحد می‌رسند — و **Backend تنها مرجع
+تعیین گام جاری است** (BR-05). Frontend نمی‌تواند از خودش بگوید «برو کارت ۷».
+
+### تفکیک لایه‌های داده
 
 ```mermaid
-stateDiagram-v2
-    [*] --> CREATED
-    CREATED --> IN_PROGRESS: start
-    IN_PROGRESS --> PAUSED: pause
-    IN_PROGRESS --> COMPLETED: finish
-    PAUSED --> IN_PROGRESS: resume
+flowchart LR
+    RD["داده‌ی خام<br/>response_text"] --> ME["اندازه‌گیری<br/>measurement_data"]
+    ME --> CO["کدگذاری<br/>coding"] --> SC["متغیرها<br/>calculated_data"] --> IN["تفسیر غیرقطعی<br/>findings"]
 ```
 
-وضعیت‌ها: `CREATED`، `IN_PROGRESS`، `PAUSED`، `COMPLETED`، `ABANDONED`، `CANCELLED`. **Backend مرجع تعیین current state است**؛ Frontend نمی‌تواند به‌تنهایی بگوید «برو Card 7».
+سه دسته داده وجود دارد و در یکدیگر ادغام نمی‌شوند:
 
-داده‌ی خام از تحلیل جدا نگه داشته می‌شود: `Raw Data → Measurements → Scoring → Interpretation`. سه دسته داده وجود دارد — user-generated (`response_text`)، system-measured (duration، timing، interaction count) و domain-specific coded (location، determinants، content). پاسخ پس از submit **overwrite نمی‌شود**.
+- **تولیدشده توسط کاربر** — متن پاسخ و متن روشن‌سازی
+- **اندازه‌گیری‌شده توسط سیستم** — زمان واکنش، مدت پاسخ، تعداد چرخش کارت، وقفه‌ها
+- **کدگذاری‌شده توسط روان‌شناس** — محل، عوامل تعیین‌کننده، کیفیت فرم، محتوا و…
 
-## ۶. Relationship و Authorization
+پاسخ پس از ثبت **بازنویسی نمی‌شود** (BR-06)؛ روشن‌سازی و کدگذاری در ستون‌های جداگانه
+کنار همان ردیف می‌نشینند.
 
-Authorization بر اساس رابطه‌ی Patient ↔ Psychologist انجام می‌شود (`PENDING` / `ACTIVE` / `REJECTED` / `REVOKED`):
+## ۷. رابطه و مجوز دسترسی
+
+مجوز دسترسی بر پایه‌ی رابطه‌ی مراجع ↔ روان‌شناس است، نه صرفاً نقش:
 
 ```mermaid
 flowchart TD
-    Q{"Is relationship ACTIVE?"} -->|YES| AL[ALLOW]
-    Q -->|NO| DN[DENY]
+    R["GET /assessments/sessions/{id}/"] --> A{"احراز هویت شده؟"}
+    A -->|خیر| E1["401"]
+    A -->|بله| P{"مالک؟ یا روان‌شناسِ دارای رابطه‌ی ACTIVE؟ یا ادمین؟"}
+    P -->|خیر| E2["403"]
+    P -->|بله| OK["200"]
 ```
 
-مهم‌ترین Security Rule: ‏`GET /assessments/{id}` هرگز نباید صرفاً `Assessment.objects.get(id=id)` باشد؛ باید بررسی شود کاربر مالک assessment است، روان‌شناس مرتبط است، یا ادمین.
+مهم‌ترین قاعده‌ی امنیتی سیستم این است که چنین اندپوینتی هرگز نباید صرفاً
+«یافتن رکورد با شناسه» باشد. پیاده‌سازی در
+`backend/apps/assessments/permissions.py` تابع `readable_session()` است و هیچ مسیری
+دورش نمی‌زند.
 
-session تاریخی provenance خود را حفظ می‌کند: حتی اگر relationship بعداً revoked شود، assessment قدیمی orphan نمی‌شود. پیش‌فرض معماری `ACTIVE relationship → current access` است و سیاست دسترسی تاریخی یک تصمیم business است، نه چیزی که backend حدس بزند.
+هنگام ساخت جلسه، سه‌گانه‌ی *مراجع / روان‌شناس / رابطه* روی خود جلسه ثبت می‌شود.
+اگر رابطه بعداً لغو شود، دسترسی جاری روان‌شناس بسته می‌شود اما **جلسه‌ی تاریخی
+بی‌صاحب نمی‌شود** و تبار خود را حفظ می‌کند (BR-12 و BR-13).
 
-## ۷. جریان‌های اصلی
+## ۸. جریان‌های اصلی
 
-**ثبت‌نام:** `Landing → Register → (Patient | Psychologist) → Verification`
+**مراجع:**
+ورود ← داشبورد ← انتخاب روان‌شناس ← درخواست ارتباط ← (تأیید روان‌شناس) ← شروع آزمون ←
+مرحله‌ی پاسخ (۱۰ کارت) ← مرحله‌ی روشن‌سازی (هر پاسخ) ← مرور ← ثبت نهایی
 
-**بیمار:** `Login → Dashboard → Start Assessment → Select Psychologist → Relationship → Intro → Phase 1 → Phase 2 → Complete`
+**روان‌شناس:**
+ورود ← داشبورد ← درخواست‌ها ← مراجعان ← پرونده‌ی مراجع ← جزئیات آزمون ←
+کدگذاری هر پاسخ ← محاسبه‌ی متغیرها ← مطالعه‌ی یافته‌های غیرقطعی
 
-**روان‌شناس:** داشبورد با Profile، Achievements، Patients، Assessments، History، Messages؛ و `Patient → Assessment List → Assessment Detail` شامل Raw Responses، Measurements، Calculated Parameters، Report.
+**ادمین:**
+کاربران · تأیید روان‌شناسان · روابط · جلسات آزمون · نسخه‌های آزمون · اطلاعیه · رسانه · ممیزی
 
-**ادمین:** Users، Psychologists، Patients، Relationships، Assessments، Test Definitions/Versions، Announcements، Media، Audit Logs.
+> پس از تکمیل آزمون، مراجع فقط پیام «آزمون با موفقیت ثبت شد» را می‌بیند؛ داده‌ی خام و
+> کدگذاری‌شده و تحلیل فقط به روان‌شناس نشان داده می‌شود (BR-14).
 
-> raw/coded assessment data فقط برای psychologist نمایش داده می‌شود؛ بیمار پس از completion صرفاً «Assessment completed successfully» را می‌بیند.
+دیاگرام‌های توالی کامل در [[05-sequence-diagrams]].
 
-جزئیات در [[01-requirements]] و [[05-sequence-diagrams]].
+## ۹. تصمیمات فناوری
 
-## ۸. تصمیمات معماری قطعی‌شده
+| لایه | انتخاب | نسخه‌ی واقعی |
+|---|---|---|
+| Frontend | Angular (Standalone، Signals) + Tailwind CSS + daisyUI | 20.1 · 4.3 · 5.7 |
+| Backend | Django + Django REST Framework | 6.0 · 3.18 |
+| احراز هویت | SimpleJWT — توکن دسترسی در بدنه، توکن تمدید در کوکی `HttpOnly` با چرخش و ابطال | 5.5 |
+| دیتابیس | PostgreSQL + `JSONField` برای داده‌ی پویا | 17 |
+| Cache / صف / بلادرنگ | Redis · Celery · Django Channels روی ASGI/Daphne | 7 · 5.5 · 4.3 |
+| ذخیره‌ی فایل | سیستم‌فایل در توسعه · S3-compatible در production (`django-storages`) | 1.14 |
+| مستندسازی API | drf-spectacular (OpenAPI 3 + Swagger UI) | 0.28 |
+| تست و لینت | pytest + pytest-django · ruff | 8.4 · 0.14 |
+| بسته‌بندی | Docker و docker compose | — |
 
-| بخش | انتخاب |
+**قاعده‌ی انتخاب مدل داده:** موجودیت پایدار کسب‌وکار ← جدول رابطه‌ای؛
+داده‌ی پویا / نسخه‌دار / متغیر ← JSONB. مثلاً `assessment_sessions` رابطه‌ای است اما
+ستون‌های `measurement_data` و `coding` روی پاسخ‌ها از نوع JSON‌اند.
+
+چرا MongoDB انتخاب نشد؟ ساختار «مرحله ← کارت ← پاسخ‌ها» در MongoDB طبیعی است، اما در
+کنار کاربران، روابط، مجوزها، چت و ممیزی — که همگی رابطه‌ای و تراکنشی‌اند —
+یک PostgreSQL واحد با JSONB انتخاب متعادل‌تری بود: هم انعطاف JSON را دارد، هم
+قید یکتایی و تراکنش اتمیک را.
+
+## ۱۰. فازبندی و وضعیت
+
+| Sprint | تمرکز | وضعیت |
+|---|---|---|
+| ۱ Foundation | مخزن، Docker، Django، Angular، PostgreSQL، Redis | ✅ — ⛔ NGINX و CI |
+| ۲ Identity | کاربر، ثبت‌نام، ورود، نقش، پروفایل، تأیید روان‌شناس | ✅ |
+| ۳ Relationships | جست‌وجو، درخواست، تأیید، رد، لغو، مجوزها | ✅ |
+| ۴ Test Engine | تعریف/نسخه/مرحله/کارت، نسخه‌بندی، clone و انتشار | ✅ |
+| ۵ Rorschach Flow | اجرای کامل R-PAS، یادآوری، روشن‌سازی، ادامه پس از قطعی، تکمیل | ✅ |
+| ۶ Psychologist | پرونده، جزئیات آزمون، کدگذاری، تحلیل | ✅ — ◐ گزارش نهایی |
+| ۷ Communication | گفت‌وگو، پیام، WebSocket، اطلاعیه | ✅ |
+| ۸ Admin | هر ۱۶ مسیر پنل ادمین | ✅ |
+| ۹ Hardening | محدودسازی نرخ، لاگ سه‌لایه، قیدهای دیتابیس، ۱۲۹ تست | ◐ — ⛔ مانیتورینگ، پشتیبان‌گیری، TLS |
+
+## ۱۱. مرزهای صریح پروژه
+
+این‌ها **تصمیم** هستند، نه فراموشی:
+
+| مورد | تصمیم |
 |---|---|
-| Frontend / UI | Angular 20 · Tailwind CSS |
-| Backend / API | Django · Django REST Framework |
-| Architecture | Modular Monolith |
-| Primary DB / Flexible data | PostgreSQL · JSONB |
-| Cache / Jobs / Realtime | Redis · Celery · WebSocket (Django Channels) |
-| File Storage / Proxy | S3-compatible Object Storage · NGINX |
-| Auth / Roles | Access + Refresh Token · Patient / Psychologist / Admin |
-| Assessment | Versioned State Machine |
-| Audit / Deployment / Versioning | Dedicated Audit Log · Docker · `/api/v1/` |
+| جداول رسمی کیفیت فرم و پاسخ‌های رایج R-PAS | در سامانه **جاسازی نشده‌اند** (دارای حق نشر)؛ کدگذار آن‌ها را اعمال می‌کند |
+| تبدیل به نمره‌ی استاندارد | انجام نمی‌شود؛ خروجی **خام** است، چون جداول هنجار R-PAS در دسترس نیست |
+| وزن‌ها و آستانه‌های تفسیر | اکتشافی‌اند و باید با دستورالعمل رسمی R-PAS تطبیق داده شوند ([[10-assessment-rpas]] §۸) |
+| تشخیص روان‌شناختی | سیستم چنین ادعایی ندارد (BR-18) |
+| اعلان شخصی کاربر | از محصول حذف شد؛ فقط اطلاعیه‌ی عمومی سایت هست ([[11-backend-notes]] D-04) |
+| توقف آزمون | در R-PAS اجرا پیوسته است؛ دکمه‌ی توقف وجود ندارد ([[11-backend-notes]] D-12) |
 
-قاعده‌ی انتخاب مدل داده: `Stable business entity → Relational table` و `Dynamic / versioned / variable data → JSONB`. MongoDB برای ساختار `Phase → Card → Responses` طبیعی است، اما در کنار Users، Relationships، Permissions، Chat، Notifications و Audit، یک PostgreSQL واحد با JSONB انتخاب متعادل‌تری است.
-
-## ۹. فازبندی
-
-| Sprint | تمرکز |
-|---|---|
-| 1 | Foundation — Repository، Docker، Django، Angular، PostgreSQL، Redis، NGINX، CI |
-| 2 | Identity — User، Register، Login، Role، Profile، Verification |
-| 3 | Relationships — Search، Request، Approve، Revoke، Permissions |
-| 4 | Test Engine — TestDefinition/Version، Phase، Card، Session، State Machine |
-| 5 | Rorschach Flow — Card rendering، Response boxes، Timing، Autosave، Resume، Completion |
-| 6 | Psychologist — Patients، History، Assessment detail، Analysis، Report |
-| 7 | Communication — Conversation، Message، WebSocket، Notification |
-| 8 | Admin — User/Test management، تأیید روان‌شناس، Announcements، Audit |
-| 9 | Hardening — Security، Performance، Testing، Monitoring، Backup، Deployment |
-
-ترتیب مستندسازی پیش از نوشتن اولین model: [[01-requirements]] → [[02-architecture]] → [[03-data-model-er]].
-
-## ۱۰. مورد باز
-
-schema دقیق پارامترهای رورشاخ (Location، Determinant، Form Quality، Content، Popularity، Special Scores) نهایی نشده است. اینکه هرکدام column، JSONB یا جدول جداگانه باشند، پس از مشخص شدن منابع علمی تصمیم‌گیری می‌شود. مرز میان **Software Architecture** و **Psychological Methodology** عمداً حفظ شده است.
+مرز میان **مهندسی نرم‌افزار** و **روش‌شناسی روان‌شناسی** عمداً حفظ شده است: نرم‌افزار
+ساختار، ثبت، محاسبه و ردیابی را تضمین می‌کند؛ اعتبار بالینی کدها و آستانه‌ها بر عهده‌ی
+منابع رسمی و روان‌شناس است.

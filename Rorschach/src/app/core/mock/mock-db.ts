@@ -122,7 +122,7 @@ function buildRorschachStructure(): {
     status: 'ACTIVE',
     coding_system: 'R-PAS',
     methodology_reference: 'Rorschach Performance Assessment System (R-PAS)',
-    source_document: 'docs/09-Roreshach-analysis.md',
+    source_document: 'docs/09-rorschach-analysis.md',
     created_at: daysAgo(90),
   };
   const version: TestVersion = {
