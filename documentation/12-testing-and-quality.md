@@ -24,7 +24,7 @@ related:
 
 | سنجه | مقدار |
 |---|---|
-| تست Backend | **۱۲۹** تست pytest — همه سبز |
+| تست Backend | **۱۴۷** تست pytest — همه سبز |
 | تست Frontend | **۱۲** تست Karma/Jasmine — همه سبز |
 | لینت Backend | `ruff` — بدون خطا |
 | زمان اجرای مجموعه‌ی Backend | چند ثانیه (SQLite درون‌فایلی، بدون سرویس خارجی) |
@@ -82,9 +82,10 @@ pytest` روی Redis و کارگزار واقعی اجرا می‌شد و تست
 | `assessments/tests/test_review.py` | ۱۴ | مجوز پروتکل، کدگذاری، تحلیل، ممیزی |
 | `assessments/tests/test_scoring.py` | ۱۰ | فرمول‌های R-PAS به‌صورت واحد (بدون HTTP) |
 | `assessments/tests/test_critical_path.py` | ۱ | کل مسیر بحرانی end-to-end |
+| `assessments/tests/test_content_words.py` | ۱۸ | تشخیص واژه‌های محتوا: واژه‌نامه، مهار مدل، سقوط به واژه‌نامه، ترابری واسط ([[14-ai-content-words]]) |
 | `messaging/tests/test_chat.py` | ۷ | REST چت: طرف مقابل، نخوانده‌ها، مجوز |
 | `common/tests/test_error_shape.py` | ۹ | قالب یکسان خطا و سلامت سرویس |
-| **جمع** | **۱۲۹** | |
+| **جمع** | **۱۴۷** | |
 
 ## ۵. تست موتور آزمون
 

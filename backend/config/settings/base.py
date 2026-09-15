@@ -200,6 +200,18 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# ---- AI assist (docs/14) ---------------------------------------------------
+
+# Content-word detection over Response Phase answers. The model is reached
+# through an OpenAI-compatible Iranian relay — AvalAI by default; any relay that
+# speaks the same dialect works by changing the base URL. Without a key the
+# feature still answers, from the local lexicon, so no deployment depends on it.
+AI_ENABLED = env.bool("AI_ENABLED", default=True)
+AI_BASE_URL = env("AI_BASE_URL", default="https://api.avalai.ir/v1")
+AI_API_KEY = env("AI_API_KEY", default="")
+AI_MODEL = env("AI_MODEL", default="gpt-4o-mini")
+AI_TIMEOUT_SECONDS = env.float("AI_TIMEOUT_SECONDS", default=20.0)
+
 # ---- i18n ------------------------------------------------------------------
 
 LANGUAGE_CODE = "fa"

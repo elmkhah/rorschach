@@ -194,6 +194,53 @@ class AssessmentAnalysis(UUIDModel):
         return f"{self.assessment_id} · {self.algorithm_version}"
 
 
+class DetectionSource(models.TextChoices):
+    AI = "AI", "مدل زبانی"
+    LEXICON = "LEXICON", "واژه‌نامه‌ی محلی"
+
+
+class ContentDetection(UUIDModel):
+    """
+    AI-assisted content-word hints for the Response Phase (docs/14).
+
+    A fourth layer beside the three the runtime already keeps apart: raw →
+    measurements → coding → *hints*. It sits in its own table for the same
+    reason clarification does — so that nothing advisory can ever be mistaken
+    for, or overwrite, what the psychologist coded (BR-06, docs/10 §5).
+
+    One row per protocol, like `AssessmentAnalysis`: a run costs one relay call
+    for the whole session and is recomputed only when asked.
+    """
+
+    assessment = models.OneToOneField(
+        AssessmentSession, on_delete=models.CASCADE, related_name="content_detection"
+    )
+    status = models.CharField(
+        max_length=16, choices=AnalysisStatus.choices, default=AnalysisStatus.PENDING
+    )
+    source = models.CharField(
+        max_length=16, choices=DetectionSource.choices, default=DetectionSource.LEXICON
+    )
+    # The relay model that answered — empty when the lexicon did.
+    model_name = models.CharField(max_length=64, blank=True, default="")
+    #: [{response_id, sequence, card_number, text, content, label, confidence, source}]
+    items = models.JSONField(default=list, blank=True)
+    # Why the relay was not used. Kept so the psychologist can tell "nothing
+    # found" apart from "the service was down".
+    error = models.TextField(blank=True, default="")
+    generated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "assessment_content_detections"
+        verbose_name = "تشخیص واژه‌های محتوا"
+        verbose_name_plural = "تشخیص‌های واژه‌های محتوا"
+
+    def __str__(self) -> str:
+        return f"{self.assessment_id} · {self.source} · {len(self.items)}"
+
+
 class AssessmentReport(UUIDModel):
     assessment = models.OneToOneField(
         AssessmentSession, on_delete=models.CASCADE, related_name="report"

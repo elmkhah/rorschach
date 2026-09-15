@@ -11,6 +11,7 @@ from apps.assessments.models import (
     AssessmentReport,
     AssessmentResponse,
     AssessmentSession,
+    ContentDetection,
 )
 from apps.catalog.models import AssessmentCard, TestDefinition, TestPhase, TestVersion
 
@@ -275,6 +276,39 @@ class AssessmentAnalysisSerializer(serializers.ModelSerializer):
             "calculated_data",
             "generated_at",
         )
+
+
+class ContentDetectionSerializer(serializers.ModelSerializer):
+    """
+    The AI hint layer (docs/14). `items` is a flat list so the caller can group
+    it either way — by response or by content code — and `summary` saves the
+    common case of counting codes across the protocol.
+    """
+
+    assessment_id = serializers.UUIDField(read_only=True)
+    summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContentDetection
+        fields = (
+            "id",
+            "assessment_id",
+            "status",
+            "source",
+            "model_name",
+            "items",
+            "summary",
+            "error",
+            "generated_at",
+        )
+
+    def get_summary(self, obj) -> dict:
+        counts: dict[str, int] = {}
+        for item in obj.items or []:
+            code = item.get("content")
+            if code:
+                counts[code] = counts.get(code, 0) + 1
+        return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
 
 
 class AssessmentReportSerializer(serializers.ModelSerializer):

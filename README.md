@@ -52,7 +52,7 @@ cd Rorschach && npm ci && npm start
 
 ```
 .
-├── backend/           Django + DRF — ۱۰ اپ دامنه‌ای، ۲۰ جدول، ۴۹ مسیر API
+├── backend/           Django + DRF — ۱۰ اپ دامنه‌ای، ۲۱ جدول، ۵۰ مسیر API
 ├── Rorschach/         Angular 20 — ۹ feature، ۳۰ صفحه
 ├── documentation/     مستند مهندسی پروژه (فارسی)
 ├── docs/              خروجی ساخت فرانت‌اند برای GitHub Pages (کد منبع نیست)
@@ -71,8 +71,8 @@ cd Rorschach && npm ci && npm start
 | ۰۰ | [نمای کلی](documentation/00-overview.md) | صورت مسئله، تصمیم‌های کلان، وضعیت پروژه |
 | ۰۱ | [نیازمندی‌ها](documentation/01-requirements.md) | Actorها، قواعد کسب‌وکار، FR و NFR |
 | ۰۲ | [معماری](documentation/02-architecture.md) | معماری سیستم، لایه‌بندی، امنیت |
-| ۰۳ | [مدل داده](documentation/03-data-model-er.md) | ERD و schema کامل هر ۲۰ جدول |
-| ۰۴ | [مرجع API](documentation/04-api-design.md) | هر ۴۹ مسیر با دسترسی و بدنه |
+| ۰۳ | [مدل داده](documentation/03-data-model-er.md) | ERD و schema کامل هر ۲۱ جدول |
+| ۰۴ | [مرجع API](documentation/04-api-design.md) | هر ۵۰ مسیر با دسترسی و بدنه |
 | ۰۵ | [دیاگرام‌های رفتاری](documentation/05-sequence-diagrams.md) | توالی‌ها و ماشین‌های حالت |
 | ۰۶ | [راهنمای توسعه](documentation/06-development-guide.md) | ساختار کد، دستورها، قراردادها |
 | ۰۷ | [استقرار و عملیات](documentation/07-deployment-operations.md) | Docker، پیکربندی، لاگ |
@@ -80,8 +80,9 @@ cd Rorschach && npm ci && npm start
 | ۰۹ | [مبانی رورشاخ](documentation/09-rorschach-analysis.md) | دانش دامنه و سیستم‌های کدگذاری |
 | ۱۰ | [موتور R-PAS](documentation/10-assessment-rpas.md) | قواعد اجرا، متغیرها، تفسیر |
 | ۱۱ | [یادداشت‌های Backend](documentation/11-backend-notes.md) | انحراف‌ها و شکاف‌های شناخته‌شده |
-| ۱۲ | [تست و کیفیت](documentation/12-testing-and-quality.md) | ۱۲۹ تست و راهبرد آن‌ها |
+| ۱۲ | [تست و کیفیت](documentation/12-testing-and-quality.md) | ۱۴۷ تست و راهبرد آن‌ها |
 | ۱۳ | [ماتریس ردیابی](documentation/13-traceability.md) | نیازمندی ← کد ← تست |
+| ۱۴ | [تشخیص واژه‌های محتوا](documentation/14-ai-content-words.md) | هوش مصنوعی روی پاسخ‌های دور اول |
 
 ---
 
@@ -94,7 +95,7 @@ cd Rorschach && npx ng test --watch=false --browsers=ChromeHeadless
 
 | بررسی | نتیجه |
 |---|---|
-| تست Backend | ۱۲۹ تست — سبز |
+| تست Backend | ۱۴۷ تست — سبز |
 | تست Frontend | ۱۲ تست — سبز |
 | لینت Backend | `ruff` بدون خطا |
 
@@ -104,7 +105,8 @@ cd Rorschach && npx ng test --watch=false --browsers=ChromeHeadless
 
 پیاده‌شده: هویت و نقش‌ها، تأیید روان‌شناس، رابطه‌ی مراجع ↔ روان‌شناس، موتور کامل
 اجرای R-PAS (دو مرحله، قاعده‌ی یادآوری، ادامه پس از قطعی، تکمیل اتمیک)، کدگذاری و
-محاسبه‌ی متغیرها، چت بلادرنگ، پنل مدیریت و ممیزی.
+محاسبه‌ی متغیرها، تشخیص واژه‌های محتوای دور اول با هوش مصنوعی، چت بلادرنگ، پنل
+مدیریت و ممیزی.
 
 باقی‌مانده: NGINX و TLS، CI، مانیتورینگ و پشتیبان‌گیری، تولیدکننده‌ی گزارش نهایی، و
 یک شکاف مجوزی شناخته‌شده (D-13) — فهرست کامل در

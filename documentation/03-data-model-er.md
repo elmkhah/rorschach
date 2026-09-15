@@ -51,6 +51,7 @@ erDiagram
     AssessmentSession ||--o{ AssessmentResponse : "پاسخ‌ها"
     AssessmentCard ||--o{ AssessmentResponse : "روی کارت"
     AssessmentSession ||--o| AssessmentAnalysis : "تحلیل"
+    AssessmentSession ||--o| ContentDetection : "واژه‌های محتوا"
     AssessmentSession ||--o| AssessmentReport : "گزارش"
     User ||--o{ AssessmentResponse : "کدگذار"
 
@@ -75,12 +76,12 @@ erDiagram
 | رابطه | `patient_psychologist_relationships` |
 | کاتالوگ | `test_definitions` · `test_versions` · `test_phases` · `test_cards` |
 | رسانه | `media_assets` |
-| اجرا | `assessment_sessions` · `assessment_responses` · `assessment_analyses` · `assessment_reports` |
+| اجرا | `assessment_sessions` · `assessment_responses` · `assessment_analyses` · `assessment_content_detections` · `assessment_reports` |
 | ارتباط | `conversations` · `conversation_participants` · `messages` |
 | اطلاعیه | `site_announcements` |
 | ممیزی | `audit_logs` |
 
-جمعاً **۲۰ جدول دامنه‌ای**. علاوه بر این‌ها، جدول‌های خود Django
+جمعاً **۲۱ جدول دامنه‌ای**. علاوه بر این‌ها، جدول‌های خود Django
 (`django_migrations`, `django_content_type`, `auth_permission`, `django_session`) و
 دو جدول SimpleJWT (`token_blacklist_outstandingtoken`, `token_blacklist_blacklistedtoken`)
 هم وجود دارند که ما تعریفشان نکرده‌ایم.
@@ -349,6 +350,25 @@ flowchart LR
 نسخه‌دار بودن الگوریتم عمدی است: اگر وزنی یا آستانه‌ای عوض شود، تحلیل‌های قدیمی
 همچنان قابل تفسیرند چون می‌دانیم با کدام نسخه محاسبه شده‌اند.
 
+### `assessment_content_detections`
+
+| ستون | نوع | قید |
+|---|---|---|
+| `id` | UUID | کلید اصلی |
+| `assessment_id` | UUID | **یک‌به‌یک** با جلسه · `CASCADE` |
+| `status` | varchar(16) | `PENDING` \| `PROCESSING` \| `DONE` \| `FAILED` |
+| `source` | varchar(16) | `AI` \| `LEXICON` — چه چیزی جواب داده |
+| `model_name` | varchar(64) | پیش‌فرض `''` — برای واژه‌نامه خالی است |
+| `items` | json | پیش‌فرض `[]` — فهرست تخت واژه‌های تشخیص‌داده‌شده |
+| `error` | text | پیش‌فرض `''` — دلیل در دسترس نبودن واسط |
+| `generated_at` | timestamptz | nullable |
+| `created_at` · `updated_at` | timestamptz | — |
+
+پیشنهادهای هوش مصنوعی درباره‌ی واژه‌های محتوای دور اول ([[14-ai-content-words]]).
+عمداً جدول جداست: چیزی که مشورتی است نباید بتواند روی `responses.coding` بنشیند یا
+با آن اشتباه گرفته شود — همان دلیلی که `clarification` کنار پاسخ ذخیره می‌شود نه
+رویش (BR-06).
+
 ### `assessment_reports`
 
 | ستون | نوع | قید |
@@ -438,7 +458,7 @@ PSYCHOLOGIST_PROFILE_APPROVED · PSYCHOLOGIST_PROFILE_REJECTED · PSYCHOLOGIST_P
 PSYCHOLOGIST_DOCUMENTS_UPLOADED · USER_ACTIVATED · USER_DEACTIVATED
 RELATIONSHIP_CREATED · RELATIONSHIP_APPROVED · RELATIONSHIP_REJECTED · RELATIONSHIP_REVOKED
 PATIENT_STARTED_ASSESSMENT · PATIENT_COMPLETED_ASSESSMENT · PSYCHOLOGIST_VIEWED_ASSESSMENT
-RESPONSE_CODED · ANALYSIS_GENERATED
+RESPONSE_CODED · ANALYSIS_GENERATED · CONTENT_WORDS_DETECTED
 TEST_VERSION_CREATED · TEST_VERSION_PUBLISHED
 ```
 

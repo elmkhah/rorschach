@@ -19,6 +19,30 @@ CONTENT_CODES = (
     "An", "Art", "Ay", "Bl", "Cg", "Ex", "Fi", "Sx", "NC",
 )
 
+#: The Persian names of the content codes, identical to the labels the coding
+#: panel shows (`core/rpas/rpas-codes.ts`). Read by the AI hint layer, which has
+#: to put the catalog in front of a model in words rather than in codes.
+CONTENT_LABELS: dict[str, str] = {
+    "H": "انسان کامل",
+    "(H)": "انسان خیالی / غیرواقعی",
+    "Hd": "جزء انسانی",
+    "(Hd)": "جزء انسانی خیالی",
+    "Hx": "تجربه‌ی انسانی (احساس، ادراک)",
+    "A": "حیوان کامل",
+    "(A)": "حیوان خیالی",
+    "Ad": "جزء حیوانی",
+    "(Ad)": "جزء حیوانی خیالی",
+    "An": "آناتومی",
+    "Art": "هنر",
+    "Ay": "انسان‌شناسی / فرهنگی",
+    "Bl": "خون",
+    "Cg": "پوشاک",
+    "Ex": "انفجار",
+    "Fi": "آتش",
+    "Sx": "جنسی",
+    "NC": "سایر محتواها",
+}
+
 DETERMINANT_CODES = ("M", "FM", "m", "FC", "CF", "C", "C'", "T", "V", "Y", "r", "FD", "F")
 
 COGNITIVE_CODES = ("DV1", "DV2", "INC1", "INC2", "DR1", "DR2", "FAB1", "FAB2", "PEC", "CON")

@@ -26,6 +26,7 @@ class AuditAction(models.TextChoices):
     PSYCHOLOGIST_VIEWED_ASSESSMENT = "PSYCHOLOGIST_VIEWED_ASSESSMENT", "مشاهده آزمون"
     RESPONSE_CODED = "RESPONSE_CODED", "کدگذاری پاسخ"
     ANALYSIS_GENERATED = "ANALYSIS_GENERATED", "تولید تحلیل"
+    CONTENT_WORDS_DETECTED = "CONTENT_WORDS_DETECTED", "تشخیص واژه‌های محتوا"
     TEST_VERSION_CREATED = "TEST_VERSION_CREATED", "ایجاد نسخه آزمون"
     TEST_VERSION_PUBLISHED = "TEST_VERSION_PUBLISHED", "انتشار نسخه آزمون"
 

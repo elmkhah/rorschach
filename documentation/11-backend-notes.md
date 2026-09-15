@@ -48,7 +48,7 @@ Mock کامل از API داشت: `mock-router.ts` قالب خطا را می‌س
 | داده | PostgreSQL با ستون‌های JSON — تست‌ها روی SQLite هم اجرا می‌شوند |
 | Cache / صف / بلادرنگ | Redis · Celery · Django Channels روی ASGI |
 | ذخیره‌سازی | سیستم‌فایل در توسعه · S3-compatible در production |
-| کیفیت | ۱۲۹ تست pytest · ruff بدون خطا |
+| کیفیت | ۱۴۷ تست pytest · ruff بدون خطا |
 
 ساختار کامل در [[06-development-guide]] §۳. لایه‌بندی `View → Serializer → Service →
 Model` با selector برای خواندن؛ کل ماشین حالت آزمون در `apps/assessments/services.py`
@@ -66,7 +66,7 @@ Model` با selector برای خواندن؛ کل ماشین حالت آزمون
 | ۶ Psychologist | ✅ پروتکل کامل، کدگذاری، تحلیل — ◐ گزارش نهایی فقط مدل است |
 | ۷ Communication | ✅ REST گفت‌وگو/پیام + WebSocket برای پیام، تایپ، خوانده‌شدن، حضور |
 | ۸ Admin | ✅ هر ۱۶ مسیر پنل ادمین |
-| ۹ Hardening | ◐ محدودسازی نرخ، لاگ سه‌لایه، قیدهای دیتابیس، ۱۲۹ تست — ⛔ NGINX، مانیتورینگ، پشتیبان |
+| ۹ Hardening | ◐ محدودسازی نرخ، لاگ سه‌لایه، قیدهای دیتابیس، ۱۴۷ تست — ⛔ NGINX، مانیتورینگ، پشتیبان |
 
 مسیر بحرانی به‌صورت end-to-end و فقط از راه HTTP تست می‌شود:
 `apps/assessments/tests/test_critical_path.py`.
@@ -285,3 +285,4 @@ flowchart LR
 | ایندکس JSON | تا مشخص شدن الگوی کوئری زده نشده |
 | مانیتورینگ و پشتیبان‌گیری | [[07-deployment-operations]] §۹ و §۱۰ |
 | کارهای فرانت‌اند D-07 و D-09 | محدودیت بارگذاری و متن راهنمای رمز |
+| رابط کاربری تشخیص واژه‌های محتوا | اندپوینت و خط فرمان آماده‌اند؛ پنل کدگذاری هنوز آن را مصرف نمی‌کند ([[14-ai-content-words]] §۱۱) |

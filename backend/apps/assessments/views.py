@@ -24,6 +24,7 @@ from apps.assessments.serializers import (
     AssessmentResponseSerializer,
     AssessmentSessionSerializer,
     ClarifySerializer,
+    ContentDetectionSerializer,
     ResponseCodingSerializer,
     RunStateSerializer,
     SubmitResponseSerializer,
@@ -34,6 +35,7 @@ from apps.audit.models import AuditAction
 from apps.audit.services import record
 from apps.catalog.models import TestDefinition, TestStatus
 from apps.catalog.selectors import response_cards
+from common.exceptions import ApiError
 from common.permissions import IsPatient, IsPsychologist, IsPsychologistOrAdmin
 
 
@@ -242,6 +244,42 @@ class CodingView(APIView):
         payload.is_valid(raise_exception=True)
         response = services.save_coding(session, response_id, payload.validated_data, request.user)
         return Response(AssessmentResponseSerializer(response).data)
+
+
+class ContentWordsView(APIView):
+    """
+    `GET|POST /assessments/sessions/{id}/content-words/` — AI hints for the
+    first round (docs/14).
+
+    `POST` runs detection over the Response Phase answers and stores the result;
+    a finished run is returned as-is unless the body asks for `refresh`. `GET`
+    only reads, so opening the coding screen never spends a relay call.
+
+    Psychologist and admin only: these are hints about the protocol, and BR-14
+    keeps every reading of the protocol away from the examinee.
+    """
+
+    permission_classes = [IsPsychologistOrAdmin]
+    throttle_scope = "write"
+
+    @extend_schema(responses=ContentDetectionSerializer)
+    def get(self, request, pk):
+        session = readable_session(request.user, pk)
+        detection = services.content_detection(session)
+        if detection is None:
+            raise ApiError(
+                status.HTTP_404_NOT_FOUND, "برای این آزمون هنوز تشخیص واژه‌ها اجرا نشده است."
+            )
+        return Response(ContentDetectionSerializer(detection).data)
+
+    @extend_schema(request=None, responses=ContentDetectionSerializer)
+    def post(self, request, pk):
+        session = readable_session(request.user, pk)
+        body = request.data if isinstance(request.data, dict) else {}
+        detection = services.detect_content_words(
+            session, actor=request.user, refresh=bool(body.get("refresh"))
+        )
+        return Response(ContentDetectionSerializer(detection).data)
 
 
 class AnalysisView(APIView):

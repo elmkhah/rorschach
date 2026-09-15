@@ -32,5 +32,10 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# The suite must never reach an external relay: content-word detection runs on
+# the local lexicon, and the AI path is exercised with a stubbed client.
+AI_ENABLED = False
+AI_API_KEY = ""
+
 # Throttling would make deterministic tests flaky.
 REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_CLASSES": ()}  # noqa: F405

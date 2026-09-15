@@ -141,6 +141,11 @@ config/settings/
 | `CSRF_TRUSTED_ORIGINS` | خالی | — |
 | `STORAGE_BACKEND` | `local` | `s3` برای Object Storage |
 | `STORAGE_ENDPOINT` · `STORAGE_BUCKET` · `STORAGE_ACCESS_KEY` · `STORAGE_SECRET_KEY` · `STORAGE_REGION` | — | فقط وقتی `STORAGE_BACKEND=s3` |
+| `AI_ENABLED` | `True` | کلید قطع تشخیص واژه‌های محتوا ([[14-ai-content-words]]) |
+| `AI_BASE_URL` | `https://api.avalai.ir/v1` | واسط ایرانی سازگار با OpenAI |
+| `AI_API_KEY` | خالی | خالی = فقط واژه‌نامه‌ی محلی، بدون هیچ تماس بیرونی |
+| `AI_MODEL` | `gpt-4o-mini` | نام مدل نزد همان واسط |
+| `AI_TIMEOUT_SECONDS` | `20` | مهلت یک تماس |
 | `RUN_MIGRATIONS` | `true` | entrypoint |
 | `SEED_DEMO` | `false` | entrypoint — در ترکیب توسعه `true` |
 | `RUN_COLLECTSTATIC` | `false` | entrypoint |

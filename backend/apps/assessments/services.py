@@ -18,11 +18,13 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
 
+from apps.assessments.ai import run_detection
 from apps.assessments.models import (
     AnalysisStatus,
     AssessmentAnalysis,
     AssessmentResponse,
     AssessmentSession,
+    ContentDetection,
     SessionStatus,
     empty_administration,
 )
@@ -397,6 +399,66 @@ def run_analysis(session: AssessmentSession, actor=None) -> AssessmentAnalysis:
     if actor is not None:
         record(actor, AuditAction.ANALYSIS_GENERATED, "AssessmentSession", session.pk)
     return analysis
+
+
+# ---- AI assist: content words of the first round ----------------------------
+
+
+def content_detection(session: AssessmentSession) -> ContentDetection | None:
+    """The stored hints, or None when detection has never run for this protocol."""
+    return ContentDetection.objects.filter(assessment=session).first()
+
+
+def detect_content_words(
+    session: AssessmentSession, actor=None, *, refresh: bool = False
+) -> ContentDetection:
+    """
+    Reads the first-round answers and marks the words that carry a documented
+    R-PAS content category (docs/14).
+
+    Advisory by construction: the result lands in its own row and never touches
+    `coding`. Timing follows the coding rule — the protocol must be finished, so
+    the model sees the whole first round and the examinee is never waiting on an
+    external service. A finished run is reused until `refresh` asks for another,
+    because each run costs a relay call.
+    """
+    if session.status != SessionStatus.COMPLETED:
+        raise Conflict("تشخیص واژه‌های محتوا پس از تکمیل آزمون ممکن است.")
+
+    existing = content_detection(session)
+    if existing is not None and existing.status == AnalysisStatus.DONE and not refresh:
+        return existing
+
+    # The Response Phase only: clarification answers are the second round and
+    # explain a percept rather than name one.
+    responses = list(session.responses.filter(phase__kind=PhaseKind.RESPONSE).order_by("sequence"))
+    run = run_detection({str(response.id): response.response_text for response in responses})
+
+    items = [
+        {
+            "response_id": str(response.id),
+            "sequence": response.sequence,
+            "card_number": response.card_number,
+            **detection.as_dict(),
+        }
+        for response in responses
+        for detection in run.by_response.get(str(response.id), [])
+    ]
+
+    detected, _created = ContentDetection.objects.update_or_create(
+        assessment=session,
+        defaults={
+            "status": AnalysisStatus.DONE,
+            "source": run.source,
+            "model_name": run.model,
+            "items": items,
+            "error": run.error,
+            "generated_at": timezone.now(),
+        },
+    )
+    if actor is not None:
+        record(actor, AuditAction.CONTENT_WORDS_DETECTED, "AssessmentSession", session.pk)
+    return detected
 
 
 # ---- helpers ----------------------------------------------------------------

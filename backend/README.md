@@ -8,11 +8,12 @@ Full engineering documentation lives in [`documentation/`](../documentation/READ
 | Doc | Topic |
 | --- | --- |
 | [02 Architecture](../documentation/02-architecture.md) | layering, state machine, security, realtime |
-| [03 Data model](../documentation/03-data-model-er.md) | ERD and the full schema of all 20 tables |
-| [04 API reference](../documentation/04-api-design.md) | every one of the 49 routes |
+| [03 Data model](../documentation/03-data-model-er.md) | ERD and the full schema of all 21 tables |
+| [04 API reference](../documentation/04-api-design.md) | every one of the 50 routes |
 | [10 R-PAS engine](../documentation/10-assessment-rpas.md) | administration rules, variables, findings |
 | [11 Backend notes](../documentation/11-backend-notes.md) | deviations from the design and known gaps |
-| [12 Testing](../documentation/12-testing-and-quality.md) | what the 129 tests protect |
+| [12 Testing](../documentation/12-testing-and-quality.md) | what the 147 tests protect |
+| [14 AI content words](../documentation/14-ai-content-words.md) | first-round content-word hints through an Iranian OpenAI-compatible relay |
 
 ## Run
 
@@ -48,7 +49,7 @@ Interactive API docs: <http://localhost:8000/api/docs/>
 ## Checks
 
 ```bash
-python -m pytest          # 129 tests
+python -m pytest          # 147 tests
 python -m ruff check .
 ```
 
@@ -64,7 +65,7 @@ the same suite against PostgreSQL.
 | `apps/profiles` | patient & psychologist profiles, documents, achievements, directory |
 | `apps/relationships` | patient ↔ psychologist link, `GET /patients/{id}/` |
 | `apps/catalog` | TestDefinition → TestVersion → TestPhase → AssessmentCard |
-| `apps/assessments` | the assessment engine and `rpas/` scoring |
+| `apps/assessments` | the assessment engine, `rpas/` scoring and `ai/` content-word hints |
 | `apps/messaging` | conversations, messages, the `/ws/` consumer |
 | `apps/notifications` | site announcements |
 | `apps/media` · `apps/audit` | media metadata, audit log |
