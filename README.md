@@ -81,8 +81,8 @@ cd Rorschach && npm ci && npm start
 | ۱۰ | [موتور R-PAS](documentation/10-assessment-rpas.md) | قواعد اجرا، متغیرها، تفسیر |
 | ۱۱ | [یادداشت‌های Backend](documentation/11-backend-notes.md) | انحراف‌ها و شکاف‌های شناخته‌شده |
 | ۱۲ | [تست و کیفیت](documentation/12-testing-and-quality.md) | ۱۴۷ تست و راهبرد آن‌ها |
-| ۱۳ | [ماتریس ردیابی](documentation/13-traceability.md) | نیازمندی ← کد ← تست |
-| ۱۴ | [تشخیص واژه‌های محتوا](documentation/14-ai-content-words.md) | هوش مصنوعی روی پاسخ‌های دور اول |
+| ۱۳ | [ماتریس ردیابی](11-traceability.md) | نیازمندی ← کد ← تست |
+| ۱۴ | [تشخیص واژه‌های محتوا](11-ai-content-words.md) | هوش مصنوعی روی پاسخ‌های دور اول |
 
 ---
 
