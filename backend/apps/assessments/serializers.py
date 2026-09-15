@@ -13,7 +13,8 @@ from apps.assessments.models import (
     AssessmentSession,
     ContentDetection,
 )
-from apps.catalog.models import AssessmentCard, TestDefinition, TestPhase, TestVersion
+from apps.assessments.rpas.codes import CONTENT_LABELS
+from apps.catalog.models import AssessmentCard, PhaseKind, TestDefinition, TestPhase, TestVersion
 
 
 class CardConfigurationSerializer(serializers.Serializer):
@@ -280,12 +281,16 @@ class AssessmentAnalysisSerializer(serializers.ModelSerializer):
 
 class ContentDetectionSerializer(serializers.ModelSerializer):
     """
-    The AI hint layer (docs/14). `items` is a flat list so the caller can group
-    it either way — by response or by content code — and `summary` saves the
-    common case of counting codes across the protocol.
+    The AI hint layer (docs/14), in three readings of the same run:
+
+    * `items` — the flat word list, ordered by response;
+    * `responses` — the same words rolled up onto the answer they came from,
+      which is the shape the coder reads: «این پاسخ در کدام دسته می‌افتد؟»;
+    * `summary` — how often each content code appears across the protocol.
     """
 
     assessment_id = serializers.UUIDField(read_only=True)
+    responses = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()
 
     class Meta:
@@ -297,10 +302,48 @@ class ContentDetectionSerializer(serializers.ModelSerializer):
             "source",
             "model_name",
             "items",
+            "responses",
             "summary",
             "error",
             "generated_at",
         )
+
+    def get_responses(self, obj) -> list:
+        """
+        Every first-round answer, in order, with the categories it falls into.
+
+        Answers where nothing was recognised are listed too, with an empty
+        `contents` — a protocol row the coder must look at is more useful than
+        a silently missing one, and inventing `NC` for them would be coding.
+        """
+        grouped: dict[str, list[dict]] = {}
+        for item in obj.items or []:
+            grouped.setdefault(str(item.get("response_id")), []).append(item)
+
+        rows = []
+        answers = obj.assessment.responses.filter(phase__kind=PhaseKind.RESPONSE).order_by("sequence")
+        for answer in answers:
+            words = grouped.get(str(answer.id), [])
+            contents: list[str] = []
+            for word in words:
+                if word["content"] not in contents:
+                    contents.append(word["content"])
+            # The most confident word decides the headline category; ties keep
+            # the order the words appear in the sentence.
+            primary = max(words, key=lambda word: word.get("confidence") or 0)["content"] if words else None
+            rows.append(
+                {
+                    "response_id": str(answer.id),
+                    "sequence": answer.sequence,
+                    "card_number": answer.card_number,
+                    "response_text": answer.response_text,
+                    "contents": contents,
+                    "primary_content": primary,
+                    "primary_label": CONTENT_LABELS.get(primary, "") if primary else "",
+                    "words": words,
+                }
+            )
+        return rows
 
     def get_summary(self, obj) -> dict:
         counts: dict[str, int] = {}

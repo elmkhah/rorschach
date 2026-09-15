@@ -157,11 +157,24 @@ sequenceDiagram
       "text": "بال", "content": "Ad", "label": "جزء حیوانی",
       "confidence": 0.7, "source": "LEXICON" }
   ],
+  "responses": [
+    { "response_id": "…", "sequence": 1, "card_number": 1,
+      "response_text": "یه خفاش سیاه که بال‌هاش بازه",
+      "contents": ["A", "Ad"],
+      "primary_content": "A", "primary_label": "حیوان کامل",
+      "words": [ … ] }
+  ],
   "summary": { "A": 4, "H": 2, "Ad": 1 },
   "error": "",
   "generated_at": "…"
 }
 ```
+
+سه خوانش از یک اجرا: `items` فهرست تخت واژه‌ها، **`responses` همان واژه‌ها روی پاسخی که
+از آن آمده‌اند** — یعنی «این پاسخ در کدام دسته می‌افتد» — و `summary` شمارش هر کد در کل
+پروتکل. پاسخی که هیچ واژه‌ی شناخته‌شده‌ای ندارد هم در `responses` می‌آید، با `contents`
+خالی و `primary_content` برابر `null`: سطر ناخوانده‌ای که کدگذار باید ببیند، بهتر از سطر
+غایب است، و گذاشتن `NC` روی آن دیگر پیشنهاد نیست، کدگذاری است.
 
 `source` در سطح نتیجه می‌گوید چه چیزی جواب داده (`AI` یا `LEXICON`) و در سطح هر
 واژه می‌گوید آن واژه از کجا آمده. `error` وقتی پر است که واسط در دسترس نبوده —
@@ -195,7 +208,7 @@ python manage.py detect_content_words --session <uuid> [--refresh]
 
 ## ۱۰. تست
 
-۱۸ تست در `apps/assessments/tests/test_content_words.py`. هیچ‌کدام به شبکه نمی‌روند:
+۲۰ تست در `apps/assessments/tests/test_content_words.py`. هیچ‌کدام به شبکه نمی‌روند:
 واسط با `monkeypatch` جایگزین می‌شود و در `config/settings/testing.py` خاموش است.
 
 | موضوع | آنچه تضمین می‌شود |
@@ -206,6 +219,7 @@ python manage.py detect_content_words --session <uuid> [--refresh]
 | مهار مدل | حذف واژه‌ی ساختگی و کد نامعتبر، ادغام با واژه‌نامه |
 | تاب‌آوری | خرابی واسط → سقوط به واژه‌نامه، نه خطا |
 | هزینه | نتیجه‌ی `DONE` دوباره اجرا نمی‌شود مگر با `refresh` |
+| دسته‌بندی هر پاسخ | رول‌آپ `responses`، انتخاب دسته‌ی اصلی، و اینکه پاسخ ناشناخته حدس زده نمی‌شود |
 | ترابری | شکل واقعی درخواست (URL، سرآیند، بدنه، مهلت)، پذیرش JSON داخل ```، تبدیل هر خرابی به `GatewayError` |
 
 ## ۱۱. محدودیت‌ها و کارهای باقی‌مانده

@@ -15,6 +15,8 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.assessments.ai import run_detection
 from apps.assessments.ai.client import is_configured, model_name
 from apps.assessments.models import AssessmentSession
+from apps.assessments.rpas.codes import fa_digits
+from apps.assessments.serializers import ContentDetectionSerializer
 from apps.assessments.services import detect_content_words
 
 
@@ -52,17 +54,39 @@ class Command(BaseCommand):
 
         detection = detect_content_words(session, refresh=refresh)
         self._report(detection.source, detection.error)
-        for item in detection.items:
-            self._item(item, prefix=f"R{item['sequence']} · کارت {item['card_number']}")
+
+        # The same rollup the endpoint returns, so the shell and the API can
+        # never disagree about which category an answer fell into.
+        data = ContentDetectionSerializer(detection).data
+        for row in data["responses"]:
+            self.stdout.write("")
+            self.stdout.write(
+                f"کارت {fa_digits(row['card_number'])} · پاسخ {fa_digits(row['sequence'])} — "
+                f"«{row['response_text']}»"
+            )
+            if row["primary_content"]:
+                codes = " · ".join(row["contents"])
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"  دسته: {row['primary_content']} ({row['primary_label']})  ←  {codes}"
+                    )
+                )
+            else:
+                self.stdout.write(self.style.WARNING("  دسته: تشخیص داده نشد — با کدگذار"))
+            for item in row["words"]:
+                self._item(item)
+
+        summary = " · ".join(f"{code}×{fa_digits(count)}" for code, count in data["summary"].items())
+        self.stdout.write("")
+        self.stdout.write(f"جمع‌بندی پروتکل: {summary or '—'}")
 
     def _report(self, source: str, error: str) -> None:
         self.stdout.write(f"منبع: {source}")
         if error:
             self.stdout.write(self.style.WARNING(f"هشدار: {error}"))
 
-    def _item(self, item: dict, prefix: str = "") -> None:
-        head = f"{prefix} · " if prefix else ""
+    def _item(self, item: dict) -> None:
         self.stdout.write(
-            f"  {head}{item['text']} → {item['content']} ({item['label']}) "
+            f"    {item['text']} → {item['content']} ({item['label']}) "
             f"[{item['source']} {item['confidence']}]"
         )

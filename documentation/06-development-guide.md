@@ -187,7 +187,7 @@ API روی فیلدهای متنی اختیاری، `null` را از `""` تفک
 ### Backend
 
 ```bash
-python -m pytest                      # ۱۴۷ تست
+python -m pytest                      # ۱۵۰ تست
 python -m pytest -k assessment        # فقط یک بخش
 python -m pytest --cov                # با پوشش کد
 python -m ruff check .                # لینت

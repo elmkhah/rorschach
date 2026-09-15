@@ -129,8 +129,10 @@ def normalize(text: str) -> str:
 
 # A letter for boundary purposes: Arabic-script block plus Latin word characters.
 _LETTER = r"ء-ۿA-Za-z0-9"
-#: Persian noun endings that must not block a match (`خفاش‌ها`, `پروانه‌ای`).
-_SUFFIX = r"(?:هایی|های|ها|ای|ی|ان|ات)?"
+#: Persian noun endings that must not block a match. Plurals and the indefinite
+#: `ی` (`خفاش‌ها`, `پروانه‌ای`), plus the possessive forms spoken Persian actually
+#: uses — examinees write `بال‌هاش`, not `بال‌های او`.
+_SUFFIX = r"(?:هایشان|هایش|هاشان|هاش|هایی|های|ها|اش|ای|ی|ان|ات)?"
 
 
 def _pattern(word: str) -> re.Pattern[str]:

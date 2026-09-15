@@ -98,6 +98,11 @@ def test_the_lexicon_finds_documented_words_through_persian_suffixes():
     assert found["بال"] == "Ad"
 
 
+def test_spoken_possessive_endings_do_not_hide_a_word():
+    # Examinees write `بال‌هاش`, not `بال‌های او`.
+    assert dict(lexicon.scan("یه خفاش که بال‌هاش بازه")) == {"خفاش": "A", "بال": "Ad"}
+
+
 def test_a_longer_phrase_wins_over_the_word_inside_it():
     assert dict(lexicon.scan("یک سر آدم")) == {"سر آدم": "Hd"}
 
@@ -166,6 +171,47 @@ def test_hints_never_touch_the_coding(as_user, psychologist, completed):
     as_user(psychologist).post(f"{BASE}/{completed.id}/{URL}/", {}, format="json")
 
     assert all(r.coding is None for r in completed.responses.all())
+
+
+# ---- the per-answer rollup --------------------------------------------------
+
+
+def test_each_answer_is_rolled_up_onto_its_category(as_user, psychologist, completed):
+    body = as_user(psychologist).post(f"{BASE}/{completed.id}/{URL}/", {}, format="json").json()
+
+    rows = body["responses"]
+    assert [row["sequence"] for row in rows] == [1, 2]
+    assert [row["card_number"] for row in rows] == [1, 2]
+    assert rows[0]["response_text"] == TEXTS[0]
+    # «یه خفاش سیاه با بال‌های باز» → حیوان کامل، به‌علاوه‌ی جزء حیوانی.
+    assert rows[0]["primary_content"] == "A"
+    assert rows[0]["primary_label"] == "حیوان کامل"
+    assert set(rows[0]["contents"]) == {"A", "Ad"}
+    assert rows[1]["primary_content"] in {"H", "Hd"}
+
+
+def test_an_unrecognised_answer_is_listed_rather_than_guessed(as_user, psychologist, completed):
+    card = completed.responses.order_by("sequence").first().card
+    AssessmentResponse.objects.create(
+        assessment=completed,
+        phase=card.phase,
+        card=card,
+        card_number=card.card_number,
+        client_response_id="seed-3",
+        sequence=3,
+        card_response_number=2,
+        response_text="نمی‌دانم، چیزی به ذهنم نمی‌رسد",
+        server_started_at=timezone.now(),
+        server_submitted_at=timezone.now(),
+    )
+
+    body = as_user(psychologist).post(f"{BASE}/{completed.id}/{URL}/", {}, format="json").json()
+
+    last = body["responses"][-1]
+    assert last["sequence"] == 3
+    assert last["contents"] == []
+    # Not silently coded `NC`: an unread answer is the coder's to read.
+    assert last["primary_content"] is None
 
 
 # ---- the relay --------------------------------------------------------------
