@@ -13,7 +13,7 @@ Full engineering documentation lives in [`documentation/`](../documentation/READ
 | [10 R-PAS engine](../documentation/10-assessment-rpas.md) | administration rules, variables, findings |
 | [11 Backend notes](../documentation/11-backend-notes.md) | deviations from the design and known gaps |
 | [12 Testing](../documentation/12-testing-and-quality.md) | what the 157 tests protect |
-| [14 AI content words](../documentation/14-ai-content-words.md) | first-round content-word hints through an Iranian OpenAI-compatible relay |
+| [14 AI content words](11-ai-content-words.md) | first-round content-word hints through an Iranian OpenAI-compatible relay |
 
 ## Run
 
