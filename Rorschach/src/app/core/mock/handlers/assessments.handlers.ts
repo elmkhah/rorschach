@@ -4,6 +4,7 @@ import {
   AssessmentResponse,
   AssessmentSession,
   ClarifyBody,
+  LocationMark,
   PhaseKind,
   ResponseCoding,
   RunStage,
@@ -14,6 +15,19 @@ import { CLARIFICATION_REASONS, emptyCoding } from '@core/rpas/rpas-codes';
 import { mockDb, newId, nowIso } from '../mock-db';
 import { fail, MockContext, requireUser, route } from '../mock-router';
 import { computeRpas, RPAS_ALGORITHM_VERSION } from '../rpas-scoring';
+
+/**
+ * A selected area, normalised the way the backend stores it: `(x, y)` top-left,
+ * `(w, h)` size, never running off the card. A mark with no size is a point
+ * saved before regions existed, and stays a point.
+ */
+const area = (m: LocationMark): LocationMark => {
+  const clamp = (v: number) => Math.min(1, Math.max(0, v ?? 0));
+  const x = clamp(m.x);
+  const y = clamp(m.y);
+  return { x, y, w: Math.min(clamp(m.w ?? 0), 1 - x), h: Math.min(clamp(m.h ?? 0), 1 - y) };
+};
+
 
 const OPEN: AssessmentSession['status'][] = ['CREATED', 'IN_PROGRESS', 'PAUSED'];
 
@@ -312,7 +326,7 @@ export const assessmentRoutes = [
       if (target.clarification) return stateOf(s); // idempotent retry
       const st = requireStage(s, 'CLARIFICATION');
       if (st.target!.id !== target.id) fail(409, 'وضعیت آزمون تغییر کرده است؛ صفحه را تازه کنید.');
-      const marks = Array.isArray(b.location_marks) ? b.location_marks.slice(0, 12) : [];
+      const marks = (Array.isArray(b.location_marks) ? b.location_marks.slice(0, 12) : []).map(area);
       if (!b.whole && !marks.length) fail(400, 'محل پاسخ را روی کارت مشخص کنید.');
       // Stored separately — the original response is never overwritten (BR-06).
       const reasons = Array.isArray(b.reasons)

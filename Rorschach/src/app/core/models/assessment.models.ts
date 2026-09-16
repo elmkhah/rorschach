@@ -118,9 +118,19 @@ export interface AssessmentSession {
 export type CardRotation = 0 | 90 | 180 | 270;
 
 /** Point on the (unrotated) card, both axes normalised to 0..1. */
+/**
+ * A selected area on the unrotated card: `(x, y)` is the top-left corner and
+ * `(w, h)` the size, all normalised to 0..1.
+ *
+ * A percept covers a region of the blot, not a pixel, so the examinee drags a
+ * box around what they saw. `w`/`h` are optional because clarifications saved
+ * before regions existed carried only a point; those render as a dot.
+ */
 export interface LocationMark {
   x: number;
   y: number;
+  w?: number;
+  h?: number;
 }
 
 /** Clarification Phase data for one response (inquiry_data). */

@@ -224,10 +224,30 @@ class SubmitResponseSerializer(serializers.Serializer):
 
 
 class LocationMarkSerializer(serializers.Serializer):
-    """Normalised 0..1 coordinates on the unrotated card."""
+    """
+    A selected **area** on the unrotated card, normalised to 0..1: `(x, y)` is
+    the top-left corner and `(w, h)` the size.
+
+    An inkblot percept covers a region, not a pixel, so the examinee drags a box
+    around what they saw rather than tapping a point. `w` and `h` default to
+    zero, which keeps every clarification saved before regions existed — a bare
+    `{x, y}` point — valid and readable; it is simply an area with no size.
+    """
 
     x = serializers.FloatField(min_value=0, max_value=1)
     y = serializers.FloatField(min_value=0, max_value=1)
+    w = serializers.FloatField(min_value=0, max_value=1, required=False, default=0)
+    h = serializers.FloatField(min_value=0, max_value=1, required=False, default=0)
+
+    def validate(self, attrs: dict) -> dict:
+        """
+        A selection cannot run off the card. Clamped rather than rejected: the
+        client clamps the drag too, and a float rounding error at the edge of
+        the image must not 400 an examinee in the middle of a test.
+        """
+        attrs["w"] = min(attrs["w"], 1 - attrs["x"])
+        attrs["h"] = min(attrs["h"], 1 - attrs["y"])
+        return attrs
 
 
 class ClarifySerializer(serializers.Serializer):

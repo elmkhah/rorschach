@@ -331,7 +331,7 @@ related:
 {
   "response_id": "…",
   "whole": false,
-  "location_marks": [{ "x": 0.3, "y": 0.5 }],
+  "location_marks": [{ "x": 0.12, "y": 0.28, "w": 0.3, "h": 0.44 }],
   "reasons": ["MOVEMENT", "FORM"],
   "text": "حالت دست زدن دارند"
 }

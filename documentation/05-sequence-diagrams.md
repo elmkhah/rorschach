@@ -138,7 +138,7 @@ sequenceDiagram
 
     loop پاسخ ۱ تا R
         FE-->>P: کارت + متن خود فرد + پرسش «چه چیزی باعث شد این‌طور به نظر برسد؟»
-        P->>FE: علامت‌گذاری محل + انتخاب دلایل + توضیح اختیاری
+        P->>FE: کشیدن ناحیه روی تصویر + انتخاب دلایل + توضیح اختیاری
         FE->>BE: POST /sessions/{id}/clarifications/ {response_id, whole, location_marks, reasons, text}
         BE->>DB: ذخیره در ستون clarification — بدون دست زدن به response_text (BR-06)
         BE-->>FE: RunState (گام بعدی یا REVIEW)

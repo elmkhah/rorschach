@@ -274,7 +274,9 @@ def clarify(session: AssessmentSession, data: dict[str, Any]) -> RunState:
     # BR-06: stored beside the response; `response_text` is untouched.
     target.clarification = {
         "whole": whole,
-        "location_marks": [{"x": m["x"], "y": m["y"]} for m in marks],
+        "location_marks": [
+            {"x": m["x"], "y": m["y"], "w": m["w"], "h": m["h"]} for m in marks
+        ],
         "reasons": reasons,
         "text": text,
         "submitted_at": timezone.now().isoformat(),

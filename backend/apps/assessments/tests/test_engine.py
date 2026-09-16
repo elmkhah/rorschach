@@ -330,6 +330,46 @@ def test_clarification_needs_a_location_unless_whole(run):
     assert "محل پاسخ" in response.json()["detail"]
 
 
+def test_a_selected_area_is_stored_with_its_size(run):
+    """The examinee drags a box around what they saw; the box is what is kept."""
+    answer_all_cards(run)
+    target_id = run.state["target"]["id"]
+
+    run.clarify(whole=False, marks=[{"x": 0.2, "y": 0.3, "w": 0.25, "h": 0.4}])
+
+    stored = AssessmentSession.objects.get(pk=run.id).responses.get(pk=target_id)
+    assert stored.clarification["location_marks"] == [
+        {"x": 0.2, "y": 0.3, "w": 0.25, "h": 0.4}
+    ]
+
+
+def test_a_bare_point_still_validates_as_an_area_with_no_size(run):
+    """Clarifications saved before regions existed carried only `x` and `y`."""
+    answer_all_cards(run)
+    target_id = run.state["target"]["id"]
+
+    response = run.clarify(whole=False, marks=[{"x": 0.5, "y": 0.5}])
+
+    assert response.status_code == 200
+    stored = AssessmentSession.objects.get(pk=run.id).responses.get(pk=target_id)
+    assert stored.clarification["location_marks"] == [{"x": 0.5, "y": 0.5, "w": 0.0, "h": 0.0}]
+
+
+def test_a_selection_running_off_the_card_is_clamped_not_rejected(run):
+    """A rounding error at the edge must not 400 an examinee mid-test."""
+    answer_all_cards(run)
+    target_id = run.state["target"]["id"]
+
+    response = run.clarify(whole=False, marks=[{"x": 0.8, "y": 0.9, "w": 0.5, "h": 0.5}])
+
+    assert response.status_code == 200
+    mark = AssessmentSession.objects.get(pk=run.id).responses.get(pk=target_id).clarification[
+        "location_marks"
+    ][0]
+    assert mark["x"] + mark["w"] == pytest.approx(1.0)
+    assert mark["y"] + mark["h"] == pytest.approx(1.0)
+
+
 def test_unknown_reasons_are_dropped_and_deduplicated(run):
     answer_all_cards(run)
     target_id = run.state["target"]["id"]

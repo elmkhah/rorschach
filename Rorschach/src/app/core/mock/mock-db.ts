@@ -188,11 +188,12 @@ const cd = (
   extra: Partial<ResponseCoding> = {},
 ): ResponseCoding => ({ ...emptyCoding(), location, determinants, form_quality, content, ...extra });
 
+// Selected areas, not points: the two symmetrical sides, and the middle column.
 const PAIR: LocationMark[] = [
-  { x: 0.3, y: 0.5 },
-  { x: 0.7, y: 0.5 },
+  { x: 0.12, y: 0.28, w: 0.3, h: 0.44 },
+  { x: 0.58, y: 0.28, w: 0.3, h: 0.44 },
 ];
-const CENTER: LocationMark[] = [{ x: 0.5, y: 0.5 }];
+const CENTER: LocationMark[] = [{ x: 0.38, y: 0.3, w: 0.24, h: 0.4 }];
 
 /** Demo data: the reasons an examinee would plausibly have picked for a coded response. */
 const reasonsFor = (c: ResponseCoding): string[] =>
@@ -203,21 +204,21 @@ const PROTOCOL: ProtocolItem[] = [
   { card: 1, text: 'یک خفاش', why: 'کل لکه؛ بال‌ها این دو طرف‌اند و بدنش وسط.', coding: cd('W', ['F'], 'o', ['A'], { popular: true }) },
   { card: 1, text: 'یک ماسک', why: 'این سوراخ‌های سفید چشم‌هایش است.', coding: cd('W', ['F'], 'o', ['(Hd)'], { space: ['SR'] }) },
   { card: 2, text: 'دو خرس که دست‌هایشان را به هم زده‌اند', why: 'این دو قسمت سیاه خرس‌اند، حالت دست زدن دارند.', marks: PAIR, coding: cd('D', ['FM'], 'o', ['A'], { pair: true, popular: true, thematic_codes: ['COP'] }) },
-  { card: 2, text: 'خون', why: 'این قسمت‌های قرمز، رنگش شبیه خون است.', marks: [{ x: 0.5, y: 0.2 }, { x: 0.5, y: 0.8 }], coding: cd('D', ['C'], 'n', ['Bl']) },
+  { card: 2, text: 'خون', why: 'این قسمت‌های قرمز، رنگش شبیه خون است.', marks: [{ x: 0.4, y: 0.06, w: 0.2, h: 0.2 }, { x: 0.4, y: 0.74, w: 0.2, h: 0.2 }], coding: cd('D', ['C'], 'n', ['Bl']) },
   { card: 3, text: 'دو نفر که دارند چیزی را بلند می‌کنند', why: 'این‌ها دو آدم‌اند که خم شده‌اند و یک سبد را بلند می‌کنند.', marks: PAIR, coding: cd('D', ['M'], 'o', ['H'], { pair: true, popular: true, thematic_codes: ['COP', 'MAH'] }) },
   { card: 3, text: 'یک پاپیون قرمز', why: 'این قسمت وسط؛ رنگ قرمز و شکلش.', marks: CENTER, coding: cd('D', ['FC'], 'o', ['Cg']) },
   { card: 4, text: 'یک هیولای بزرگ که از بالا نگاه می‌کند', why: 'پاهایش این پایین است و انگار من از پایین نگاهش می‌کنم.', coding: cd('W', ['FD'], 'o', ['(H)'], { popular: true }) },
   { card: 4, text: 'پوست یک حیوان', why: 'سایه‌ها حالت پرزدار دارند، مثل پوست.', coding: cd('W', ['T'], 'o', ['Ad']), turns: 1 },
   { card: 5, text: 'یک پروانه', why: 'کل لکه؛ بال‌ها و شاخک‌ها.', coding: cd('W', ['F'], 'o', ['A'], { popular: true }) },
   { card: 6, text: 'پوست حیوانی که روی زمین پهن شده', why: 'پهن شده و سایه‌ها مثل خز است.', coding: cd('W', ['T'], 'o', ['Ad'], { popular: true }) },
-  { card: 7, text: 'دو دختر که به هم نگاه می‌کنند', why: 'صورت‌ها این بالا هستند و موهایشان رو به بالاست.', marks: [{ x: 0.3, y: 0.3 }, { x: 0.7, y: 0.3 }], coding: cd('D', ['M'], 'o', ['Hd'], { pair: true, popular: true, thematic_codes: ['MAH'] }) },
+  { card: 7, text: 'دو دختر که به هم نگاه می‌کنند', why: 'صورت‌ها این بالا هستند و موهایشان رو به بالاست.', marks: [{ x: 0.22, y: 0.18, w: 0.22, h: 0.26 }, { x: 0.56, y: 0.18, w: 0.22, h: 0.26 }], coding: cd('D', ['M'], 'o', ['Hd'], { pair: true, popular: true, thematic_codes: ['MAH'] }) },
   { card: 8, text: 'دو حیوان که از کوه بالا می‌روند', why: 'این دو قسمت صورتی حیوان‌اند و پاهایشان روی این قسمت است.', marks: PAIR, coding: cd('D', ['FM'], 'o', ['A'], { pair: true, popular: true }) },
   { card: 8, text: 'یک اسکلت', why: 'این قسمت وسط مثل دنده‌هاست.', marks: CENTER, coding: cd('D', ['F'], 'u', ['An']), turns: 1 },
-  { card: 9, text: 'آتش و دود', why: 'نارنجی‌اش شعله است و سبزش دودی که بالا می‌رود.', marks: [{ x: 0.5, y: 0.25 }, { x: 0.5, y: 0.6 }], coding: cd('D', ['CF', 'm'], 'u', ['Fi']) },
-  { card: 9, text: 'یک صورت عجیب', why: 'دو چشم این‌جاست.', marks: [{ x: 0.45, y: 0.45 }], coding: cd('Dd', ['F'], '-', ['(Hd)']), turns: 1 },
+  { card: 9, text: 'آتش و دود', why: 'نارنجی‌اش شعله است و سبزش دودی که بالا می‌رود.', marks: [{ x: 0.3, y: 0.12, w: 0.4, h: 0.22 }, { x: 0.3, y: 0.4, w: 0.4, h: 0.26 }], coding: cd('D', ['CF', 'm'], 'u', ['Fi']) },
+  { card: 9, text: 'یک صورت عجیب', why: 'دو چشم این‌جاست.', marks: [{ x: 0.4, y: 0.38, w: 0.14, h: 0.16 }], coding: cd('Dd', ['F'], '-', ['(Hd)']), turns: 1 },
   { card: 10, text: 'زیر آب، پر از موجودات رنگی', why: 'رنگ‌های مختلف، مثل خرچنگ و ماهی‌هایی که با هم‌اند.', coding: cd('W', ['CF'], 'u', ['A', 'NC'], { synthesis: true }) },
-  { card: 10, text: 'دو خرچنگ آبی', why: 'این قسمت‌های آبی؛ پاهای زیادی دارند.', marks: [{ x: 0.2, y: 0.3 }, { x: 0.8, y: 0.3 }], coding: cd('D', ['FC'], 'o', ['A'], { pair: true, popular: true }) },
-  { card: 10, text: 'دو حشره که سر یک چوب دعوا می‌کنند', why: 'این خاکستری‌ها؛ هر کدام یک طرف چوب را می‌کشند.', marks: [{ x: 0.5, y: 0.1 }], coding: cd('D', ['FM'], 'o', ['A'], { pair: true, thematic_codes: ['AGM'] }) },
+  { card: 10, text: 'دو خرچنگ آبی', why: 'این قسمت‌های آبی؛ پاهای زیادی دارند.', marks: [{ x: 0.08, y: 0.2, w: 0.24, h: 0.3 }, { x: 0.68, y: 0.2, w: 0.24, h: 0.3 }], coding: cd('D', ['FC'], 'o', ['A'], { pair: true, popular: true }) },
+  { card: 10, text: 'دو حشره که سر یک چوب دعوا می‌کنند', why: 'این خاکستری‌ها؛ هر کدام یک طرف چوب را می‌کشند.', marks: [{ x: 0.4, y: 0.04, w: 0.2, h: 0.18 }], coding: cd('D', ['FM'], 'o', ['A'], { pair: true, thematic_codes: ['AGM'] }) },
 ];
 
 /** In-progress demo session (as-2): cards I–III answered, card IV current. */

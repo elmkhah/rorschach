@@ -40,11 +40,11 @@ import { AssessmentRunStore } from '../services/assessment-run.store';
               <button type="button" class="btn btn-sm" [class.btn-neutral]="whole()" [class.btn-outline]="!whole()" (click)="whole.set(!whole())">
                 کل تصویر
               </button>
-              <button type="button" class="btn btn-ghost btn-sm" [disabled]="!marks().length" (click)="marks.set([])">پاک کردن نشانه‌ها</button>
+              <button type="button" class="btn btn-ghost btn-sm" [disabled]="!marks().length" (click)="marks.set([])">پاک کردن ناحیه‌ها</button>
             </div>
           </div>
           <app-location-marker [src]="s.card?.image_url ?? ''" [(marks)]="marks" [whole]="whole()" />
-          <p class="text-base-content/50 mt-3 text-xs">برای مشخص کردن محل روی تصویر بزنید؛ با زدن روی هر نشانه، حذف می‌شود.</p>
+          <p class="text-base-content/50 mt-3 text-xs">روی تصویر بکشید تا ناحیه‌ای به هر اندازه که لازم است انتخاب شود؛ با ✕ هر ناحیه حذف می‌شود.</p>
         </div>
 
         <div class="glass-card flex flex-col gap-4 rounded-box p-5">
@@ -57,7 +57,7 @@ import { AssessmentRunStore } from '../services/assessment-run.store';
           </div>
           <div>
             <div class="font-extrabold">کجای کارت آن را دیدید؟</div>
-            <p class="text-base-content/60 text-sm">روی تصویر مشخص کنید؛ اگر همه‌ی تصویر بود «کل تصویر» را بزنید.</p>
+            <p class="text-base-content/60 text-sm">ناحیه‌ی آن را روی تصویر بکشید؛ اگر همه‌ی تصویر بود «کل تصویر» را بزنید.</p>
           </div>
           <div class="flex flex-col gap-2">
             <span class="font-extrabold">چه چیزی باعث شد این‌طور به نظر برسد؟</span>

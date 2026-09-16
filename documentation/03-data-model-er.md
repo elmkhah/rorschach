@@ -510,7 +510,10 @@ TEST_VERSION_CREATED · TEST_VERSION_PUBLISHED
 ```json
 {
   "whole": false,
-  "location_marks": [{ "x": 0.3, "y": 0.5 }, { "x": 0.7, "y": 0.5 }],
+  "location_marks": [
+    { "x": 0.12, "y": 0.28, "w": 0.3, "h": 0.44 },
+    { "x": 0.58, "y": 0.28, "w": 0.3, "h": 0.44 }
+  ],
   "reasons": ["MOVEMENT", "FORM"],
   "text": "این دو قسمت سیاه، حالت دست زدن دارند.",
   "submitted_at": "2026-09-14T10:12:44+03:30"

@@ -99,12 +99,21 @@ stateDiagram-v2
 card_number · sequence (شماره‌ی R) · card_response_number · response_text
 server_started_at · server_submitted_at · client_started_at · client_submitted_at · duration_ms
 measurement_data = { reaction_time_ms, card_turns, final_rotation }
-clarification    = { whole, location_marks[{x, y}], reasons[], text, submitted_at }
+clarification    = { whole, location_marks[{x, y, w, h}], reasons[], text, submitted_at }
 coding           = { … کدهای R-PAS … }   ← جدا از داده‌ی خام
 ```
 
-مختصات `location_marks` **نسبی (۰ تا ۱)** روی کارت **چرخانده‌نشده**‌اند، تا از اندازه‌ی
-نمایشگر و چرخش کارت مستقل بمانند. حداکثر ۱۲ نشانه برای هر پاسخ نگه داشته می‌شود.
+هر عضو `location_marks` یک **ناحیه‌ی انتخاب‌شده** است، نه یک نقطه: `(x, y)` گوشه‌ی
+بالا-چپ و `(w, h)` اندازه — چون یک ادراک، بخشی از لکه را می‌پوشاند و نه یک پیکسل را.
+مراجع با کشیدن روی تصویر کادری به هر اندازه که لازم دارد می‌کشد.
+
+همه‌ی مقادیر **نسبی (۰ تا ۱)** روی کارت **چرخانده‌نشده**‌اند، تا از اندازه‌ی نمایشگر و
+چرخش کارت مستقل بمانند؛ ناحیه‌ای که از لبه بیرون بزند در سرور بریده می‌شود و رد
+نمی‌شود. حداکثر ۱۲ ناحیه برای هر پاسخ نگه داشته می‌شود.
+
+> `w` و `h` اختیاری‌اند و پیش‌فرضشان صفر است. روشن‌سازی‌هایی که پیش از افزوده‌شدن
+> ناحیه‌ها ذخیره شده‌اند فقط `x` و `y` دارند؛ آن‌ها همچنان معتبرند و به‌صورت یک نقطه
+> نمایش داده می‌شوند.
 
 ### مشاهده‌های اجرایی جلسه
 

@@ -56,7 +56,7 @@ related:
 | FR-02 تأیید روان‌شناس | `profiles/views.py::MyDocumentsView` · `administration/views.py::VerifyView` | `test_profiles.py` · `test_admin_api.py` | ✅ |
 | FR-03 چرخه‌ی رابطه | `relationships/services.py` | `test_relationships.py` (۱۹ تست) | ✅ |
 | FR-04 ساختار آزمون با `configuration` | `catalog/models.py` · `seed_catalog.py` | `test_admin_api.py::test_version_detail_returns_phases_and_cards` | ✅ |
-| FR-05 اجرای باحالت | `assessments/{state,services}.py` | `test_engine.py` (۳۰ تست) | ✅ |
+| FR-05 اجرای باحالت | `assessments/{state,services}.py` | `test_engine.py` (۳۳ تست) | ✅ |
 | FR-06 ثبت پاسخ با زمان و اندازه‌گیری | `services.py::submit_response` | `test_engine.py` | ✅ |
 | FR-07 ثبت idempotent | قید دیتابیس + منطق سرویس | `test_engine.py::test_duplicate_submission…` | ✅ |
 | FR-08 ادامه پس از قطعی | `state.py::build_state` | `test_engine.py::test_state_survives_a_reload_mid_run` | ✅ |
