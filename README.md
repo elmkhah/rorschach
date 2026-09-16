@@ -80,7 +80,7 @@ cd Rorschach && npm ci && npm start
 | ۰۹ | [مبانی رورشاخ](documentation/09-rorschach-analysis.md) | دانش دامنه و سیستم‌های کدگذاری |
 | ۱۰ | [موتور R-PAS](documentation/10-assessment-rpas.md) | قواعد اجرا، متغیرها، تفسیر |
 | ۱۱ | [یادداشت‌های Backend](documentation/11-backend-notes.md) | انحراف‌ها و شکاف‌های شناخته‌شده |
-| ۱۲ | [تست و کیفیت](documentation/12-testing-and-quality.md) | ۱۵۰ تست و راهبرد آن‌ها |
+| ۱۲ | [تست و کیفیت](documentation/12-testing-and-quality.md) | ۱۵۴ تست و راهبرد آن‌ها |
 | ۱۳ | [ماتریس ردیابی](documentation/13-traceability.md) | نیازمندی ← کد ← تست |
 | ۱۴ | [تشخیص واژه‌های محتوا](documentation/14-ai-content-words.md) | هوش مصنوعی روی پاسخ‌های دور اول |
 
@@ -95,7 +95,7 @@ cd Rorschach && npx ng test --watch=false --browsers=ChromeHeadless
 
 | بررسی | نتیجه |
 |---|---|
-| تست Backend | ۱۵۰ تست — سبز |
+| تست Backend | ۱۵۴ تست — سبز |
 | تست Frontend | ۱۲ تست — سبز |
 | لینت Backend | `ruff` بدون خطا |
 

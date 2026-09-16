@@ -91,9 +91,15 @@ def chat_json(system: str, user: str, *, max_tokens: int = 1200) -> dict:
 
 def _content_of(body: dict) -> dict:
     try:
-        content = body["choices"][0]["message"]["content"]
+        choice = body["choices"][0]
+        content = choice["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise GatewayError("پاسخ سرویس هوش مصنوعی قابل خواندن نبود.") from exc
+
+    # Truncation looks exactly like malformed JSON one line further down, and
+    # the two need different fixes — say which one happened.
+    if choice.get("finish_reason") == "length":
+        raise GatewayError("پاسخ سرویس هوش مصنوعی به سقف توکن خورد و ناتمام ماند.")
 
     try:
         parsed = json.loads(_unfence(content)) if isinstance(content, str) else content

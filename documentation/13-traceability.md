@@ -70,7 +70,7 @@ related:
 | FR-16 پنل ادمین | `administration/*` — ۱۶ مسیر | `test_admin_api.py` (۱۸ تست) | ✅ |
 | FR-17 ممیزی رویدادهای حساس | `audit/{models,services,middleware}.py` | `test_review.py::test_viewing_a_protocol_is_audited` · `test_admin_api.py::test_audit_log_filters_by_action` | ✅ |
 | FR-18 نسخه‌بندی API | `config/urls.py` | تمام تست‌ها روی `/api/v1/` می‌زنند | ✅ |
-| FR-19 پیشنهاد واژه‌های محتوا | `assessments/ai/*` · `services.py::detect_content_words` · `views.py::ContentWordsView` | `test_content_words.py` (۲۰ تست) | ✅ / ⛔ رابط کاربری |
+| FR-19 پیشنهاد واژه‌های محتوا | `assessments/ai/*` · `services.py::detect_content_words` · `views.py::ContentWordsView` | `test_content_words.py` (۲۵ تست) | ✅ / ⛔ رابط کاربری |
 
 ## ۳. نیازمندی‌های غیرکارکردی
 

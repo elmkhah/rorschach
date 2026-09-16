@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from apps.assessments.ai import client as client_module
 from apps.assessments.ai import detection as detection_module
-from apps.assessments.ai import lexicon
+from apps.assessments.ai import lexicon, run_detection
 from apps.assessments.ai.client import GatewayError
 from apps.assessments.models import (
     AnalysisStatus,
@@ -110,6 +110,27 @@ def test_a_longer_phrase_wins_over_the_word_inside_it():
 def test_a_word_is_not_matched_inside_another_word():
     # `سرد` must not read as `سر`.
     assert lexicon.scan("هوای سرد") == []
+
+
+def test_a_body_part_follows_the_creature_the_answer_named():
+    run = run_detection(
+        {
+            "R1": "یه خرگوش که گوش‌هاش بلنده",
+            "R2": "دو تا آدم که دارن به هم دست می‌دن",
+        }
+    )
+
+    # The ear belongs to the rabbit, so it is an animal part…
+    assert ("گوش", "Ad") in {(d.text, d.content) for d in run.by_response["R1"]}
+    # …while the hand still belongs to the people.
+    assert ("دست", "Hd") in {(d.text, d.content) for d in run.by_response["R2"]}
+
+
+def test_an_answer_naming_both_leaves_the_part_where_it_was():
+    """A rider and a horse: whose hand it is cannot be settled from the text."""
+    run = run_detection({"R1": "یه آدم که سوار اسب شده و دست‌هاش بالاست"})
+
+    assert ("دست", "Hd") in {(d.text, d.content) for d in run.by_response["R1"]}
 
 
 # ---- the endpoint -----------------------------------------------------------
@@ -219,11 +240,13 @@ def test_an_unrecognised_answer_is_listed_rather_than_guessed(as_user, psycholog
 
 def test_the_model_answer_is_merged_with_the_lexicon(as_user, psychologist, completed, relay):
     responses = list(completed.responses.order_by("sequence"))
+    # The model is addressed by short handle, never by UUID — `R1` is the first
+    # answer in sequence order.
     relay(
         {
             "responses": [
                 {
-                    "id": str(responses[0].id),
+                    "id": "R1",
                     "items": [
                         {"text": "خفاش", "content": "A", "confidence": 0.95},
                         # Never written by the examinee — a hallucination.
@@ -248,6 +271,20 @@ def test_the_model_answer_is_merged_with_the_lexicon(as_user, psychologist, comp
     assert any(item["text"] == "بال" and item["source"] == "LEXICON" for item in first)
     # And the response the model ignored entirely keeps its lexicon hints.
     assert any(item["response_id"] == str(responses[1].id) for item in body["items"])
+
+
+def test_the_relay_is_addressed_by_short_handle_not_uuid(as_user, psychologist, completed, relay):
+    """
+    UUIDs have to be echoed back by the model, and twenty of them cost more
+    output tokens than the hints they label — enough to truncate the answer.
+    """
+    calls = relay({"responses": []})
+
+    as_user(psychologist).post(f"{BASE}/{completed.id}/{URL}/", {}, format="json")
+
+    prompt = calls[0]
+    assert '"R1"' in prompt and '"R2"' in prompt
+    assert all(str(response.id) not in prompt for response in completed.responses.all())
 
 
 def test_a_dead_relay_degrades_to_the_lexicon_instead_of_failing(
@@ -363,4 +400,15 @@ def test_nothing_is_sent_without_a_key(settings):
     settings.AI_API_KEY = ""
 
     with pytest.raises(GatewayError):
+        client_module.chat_json("نقش", "پرسش")
+
+
+def test_a_truncated_answer_says_so_instead_of_blaming_the_json(transport):
+    transport(
+        json.dumps(
+            {"choices": [{"finish_reason": "length", "message": {"content": '{"responses": [{"id"'}}]}
+        )
+    )
+
+    with pytest.raises(GatewayError, match="سقف توکن"):
         client_module.chat_json("نقش", "پرسش")

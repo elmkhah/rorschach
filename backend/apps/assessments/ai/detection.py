@@ -18,7 +18,12 @@ import json
 from dataclasses import dataclass
 
 from apps.assessments.ai import client
-from apps.assessments.ai.lexicon import LEXICON_CONFIDENCE, normalize, scan
+from apps.assessments.ai.lexicon import (
+    AMBIGUOUS_BODY_PARTS,
+    LEXICON_CONFIDENCE,
+    normalize,
+    scan,
+)
 from apps.assessments.rpas.codes import CONTENT_CODES, CONTENT_LABELS
 
 #: Where a hint came from.
@@ -29,6 +34,11 @@ LEXICON = "LEXICON"
 MAX_ITEMS_PER_RESPONSE = 12
 MAX_TEXT_LENGTH = 400
 MAX_WORD_LENGTH = 60
+
+#: Output allowance, sized from the protocol rather than fixed.
+BASE_OUTPUT_TOKENS = 300
+PER_RESPONSE_TOKENS = 150
+MAX_OUTPUT_TOKENS = 8000
 
 SYSTEM_PROMPT = """
 تو دستیار کدگذاری آزمون رورشاخ (سیستم R-PAS) هستی.
@@ -43,6 +53,20 @@ SYSTEM_PROMPT = """
 ۳. صفت، فعل، رنگ و توضیح حالت کلمه‌ی محتوا نیستند؛ فقط چیزی که دیده شده.
 ۴. اگر پاسخی هیچ محتوای قابل تشخیصی ندارد، فهرست آن را خالی بگذار.
 ۵. تشخیص تو پیشنهاد است، نه کدگذاری نهایی؛ در مواردی که مطمئن نیستی confidence پایین بده.
+
+قاعده‌ی پرانتز — مهم‌ترین جایی که اشتباه می‌شود:
+کدهای پرانتزدار «(H)» و «(Hd)» و «(A)» و «(Ad)» فقط برای موجودات **خیالی و
+غیرواقعی**‌اند: اژدها، دیو، غول، فرشته، ققنوس، شخصیت کارتونی. حیوان یا انسان
+**واقعی** هرگز پرانتز نمی‌گیرد. خفاش، خرس، پروانه، عنکبوت و خرگوش حیوان واقعی‌اند
+و همیشه «A» هستند — اینکه در یک لکه‌ی جوهر دیده شده‌اند آن‌ها را خیالی نمی‌کند.
+
+جزء بدن: اگر جزء به حیوان تعلق دارد «Ad» و اگر به انسان «Hd». در «یه خرگوش که
+گوش‌هاش بلنده»، گوش «Ad» است نه «Hd».
+
+نمونه:
+«یه خفاش سیاه که بال‌هاش بازه» ← خفاش=A و بال=Ad
+«یه اژدها با دم بلند» ← اژدها=(A) و دم=(Ad)
+«دو تا آدم که دست همدیگه رو گرفتن» ← آدم=H و دست=Hd
 
 خروجی فقط یک شیء JSON با این شکل، بدون هیچ متن اضافه:
 {"responses":[{"id":"<شناسه>","items":[{"text":"<کلمه>","content":"<کد>","confidence":<۰ تا ۱>}]}]}
@@ -93,7 +117,8 @@ def run_detection(texts: dict[str, str]) -> DetectionRun:
     try:
         answered = _from_relay(texts)
     except client.GatewayError as exc:
-        return DetectionRun(by_response=lexical, source=LEXICON, model="", error=str(exc))
+        alone = {key: _merge(items, []) for key, items in lexical.items()}
+        return DetectionRun(by_response=alone, source=LEXICON, model="", error=str(exc))
 
     merged = {key: _merge(answered.get(key, []), lexical[key]) for key in texts}
     return DetectionRun(by_response=merged, source=AI, model=client.model_name())
@@ -110,20 +135,40 @@ def _from_lexicon(text: str) -> list[Detection]:
 
 
 def _from_relay(texts: dict[str, str]) -> dict[str, list[Detection]]:
-    payload = client.chat_json(SYSTEM_PROMPT, _user_prompt(texts))
+    """
+    The model is addressed with short handles (`R1`, `R2`, …), never with the
+    response UUIDs.
+
+    It has to echo every id back, and a UUID costs more output tokens than the
+    hint it labels: on a twenty-response protocol the echoed UUIDs alone ran the
+    answer past its token ceiling and truncated the JSON mid-object.
+    """
+    handles = {f"R{index}": key for index, key in enumerate(texts, start=1)}
+    asked = {handle: texts[key] for handle, key in handles.items()}
+
+    payload = client.chat_json(SYSTEM_PROMPT, _user_prompt(asked), max_tokens=_budget(asked))
     out: dict[str, list[Detection]] = {}
 
     for entry in payload.get("responses") or []:
         if not isinstance(entry, dict):
             continue
-        key = str(entry.get("id") or "")
-        if key not in texts:
-            # An id we never sent: the model invented it, so there is nothing
-            # to attach the hint to.
+        key = handles.get(str(entry.get("id") or ""))
+        if key is None:
+            # A handle we never sent: the model invented it, so there is
+            # nothing to attach the hint to.
             continue
         out[key] = _items_of(entry.get("items"), texts[key])
 
     return out
+
+
+def _budget(asked: dict[str, str]) -> int:
+    """
+    Output tokens to allow. A ten-card protocol answered in ~950 tokens, so the
+    allowance per response is deliberately several times that, and the ceiling
+    only exists to keep a runaway answer from becoming a runaway bill.
+    """
+    return min(MAX_OUTPUT_TOKENS, BASE_OUTPUT_TOKENS + PER_RESPONSE_TOKENS * len(asked))
 
 
 def _items_of(items: object, source_text: str) -> list[Detection]:
@@ -155,23 +200,59 @@ def _items_of(items: object, source_text: str) -> list[Detection]:
 # ---- assembly ---------------------------------------------------------------
 
 
+#: An `Hd` part read as `Ad` once the answer turns out to be about an animal.
+_TO_ANIMAL_PART = {"Hd": "Ad", "(Hd)": "(Ad)"}
+
+
+def _settle_body_parts(detections: list[Detection]) -> list[Detection]:
+    """
+    A body part belongs to whatever the answer said it saw.
+
+    «یه خرگوش که گوش‌هاش بلنده» names an animal and no human, so the ear is
+    `Ad`, not the dictionary's default `Hd`. When the answer names both — a
+    rider and a horse — nothing is moved: that is a genuine ambiguity and the
+    coder is the one who can see the card.
+    """
+    codes = {detection.content for detection in detections}
+    if not codes & {"A", "(A)"} or codes & {"H", "(H)"}:
+        return detections
+
+    for detection in detections:
+        target = _TO_ANIMAL_PART.get(detection.content)
+        if target and normalize(detection.text) in AMBIGUOUS_BODY_PARTS:
+            detection.content = target
+    return detections
+
+
 def _merge(primary: list[Detection], fallback: list[Detection]) -> list[Detection]:
     """
-    The model's hints first, then the lexicon words it did not mention. A word
-    is the same hint only when the category matches too: `سر` as `Hd` and `سر`
-    as `Ad` are two different readings and the coder should see both.
+    The model's hints first, then the lexicon words it did not mention, then the
+    body parts settled onto the creature the answer named.
+
+    De-duplication runs twice on purpose: settling can turn two readings that
+    disagreed — the model's `Ad` and the dictionary's default `Hd` for the same
+    ear — into the same hint, and the coder should see it once.
     """
-    merged: list[Detection] = []
+    return _dedupe(_settle_body_parts(_dedupe([*primary, *fallback])))[:MAX_ITEMS_PER_RESPONSE]
+
+
+def _dedupe(detections: list[Detection]) -> list[Detection]:
+    """
+    A word is the same hint only when the category matches too: `سر` as `Hd` and
+    `سر` as `Ad` are two different readings and the coder should see both. The
+    first occurrence wins, so a model hint outranks the dictionary's.
+    """
+    out: list[Detection] = []
     seen: set[tuple[str, str]] = set()
-    for detection in (*primary, *fallback):
+    for detection in detections:
         # Folded, so `پروانه‌ی` from the model and `پروانه` from the lexicon are
         # recognised as the same hint.
         key = (normalize(detection.text), detection.content)
         if key in seen:
             continue
         seen.add(key)
-        merged.append(detection)
-    return merged[:MAX_ITEMS_PER_RESPONSE]
+        out.append(detection)
+    return out
 
 
 def _user_prompt(texts: dict[str, str]) -> str:

@@ -97,6 +97,17 @@ WORDS: dict[str, tuple[str, ...]] = {
 #: certain, the category is only usual (see the module docstring).
 LEXICON_CONFIDENCE = 0.7
 
+#: Body parts that belong to whichever creature the answer named. The table
+#: above files them under `Hd` because that is the commoner reading, but on
+#: «یه خرگوش که گوش‌هاش بلنده» the ear is an animal part and `Hd` is simply
+#: wrong. The reading is settled per answer in `detection.py`, not here.
+AMBIGUOUS_BODY_PARTS = frozenset(
+    {
+        "دست", "پا", "چشم", "گوش", "دهان", "بینی", "گردن", "مو",
+        "شانه", "انگشت", "زانو", "کمر", "لب", "ابرو",
+    }
+)
+
 # ---- normalisation ---------------------------------------------------------
 
 #: Arabic letters typed on Persian keyboards, and the marks that survive a paste.
