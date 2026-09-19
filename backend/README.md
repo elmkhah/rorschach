@@ -9,11 +9,9 @@ Full engineering documentation lives in [`documentation/`](../documentation/READ
 | --- | --- |
 | [02 Architecture](../documentation/02-architecture.md) | layering, state machine, security, realtime |
 | [03 Data model](../documentation/03-data-model-er.md) | ERD and the full schema of all 21 tables |
-| [04 API reference](../documentation/04-api-design.md) | every one of the 50 routes |
+| [04 API reference](../documentation/04-api-design.md) | every one of the 51 routes |
 | [10 R-PAS engine](../documentation/10-assessment-rpas.md) | administration rules, variables, findings |
-| [11 Backend notes](../documentation/11-backend-notes.md) | deviations from the design and known gaps |
-| [12 Testing](../documentation/12-testing-and-quality.md) | what the 157 tests protect |
-| [14 AI content words](11-ai-content-words.md) | first-round content-word hints through an Iranian OpenAI-compatible relay |
+| [11 AI content words](../documentation/11-ai-content-words.md) | first-round content-word hints through an Iranian OpenAI-compatible relay |
 
 ## Run
 
@@ -87,5 +85,4 @@ Copy `.env.example` and set at minimum `SECRET_KEY`, `DATABASE_URL` and
 
 `common/permissions.py::IsApprovedPsychologist` exists but is not applied to any
 view, so a psychologist suspended *after* gaining an active relationship keeps
-clinical access through a direct API client. Tracked as D-13 in
-[11 Backend notes §4](../documentation/11-backend-notes.md).
+clinical access through a direct API client.
