@@ -144,7 +144,10 @@ def test_critical_path(api, rorschach, make_admin, as_user):
     assert len(detail["responses"]) == 20
     assert all(r["clarification"] is not None for r in detail["responses"])
     assert detail["analysis"]["calculated_data"]["R"] == 20
-    assert detail["analysis"]["calculated_data"]["coded"] == 0
+    # Opening the protocol drafts a coding for every response, so the analysis
+    # already has rows to count. A draft is unattributed until someone saves it.
+    assert detail["analysis"]["calculated_data"]["coded"] == 20
+    assert all(r["coded_by"] is None for r in detail["responses"])
 
     # 10. Coding one response feeds straight into the analysis.
     first_response = detail["responses"][0]["id"]
@@ -161,5 +164,5 @@ def test_critical_path(api, rorschach, make_admin, as_user):
     )
     analysis = psychologist_client.post(f"{base}/analysis/", {}, format="json").json()
     assert analysis["status"] == "DONE"
-    assert analysis["calculated_data"]["coded"] == 1
+    assert analysis["calculated_data"]["coded"] == 20
     assert analysis["calculated_data"]["caveats"]

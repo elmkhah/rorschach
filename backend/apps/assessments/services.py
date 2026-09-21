@@ -12,6 +12,7 @@ Every rule the documentation calls non-negotiable lives here:
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -28,6 +29,7 @@ from apps.assessments.models import (
     SessionStatus,
     empty_administration,
 )
+from apps.assessments.rpas.autocode import suggest_coding
 from apps.assessments.rpas.codes import normalize_coding, normalize_reasons
 from apps.assessments.rpas.scoring import RPAS_ALGORITHM_VERSION, compute_rpas
 from apps.assessments.state import (
@@ -44,6 +46,8 @@ from apps.catalog.models import PhaseKind, TestDefinition, TestStatus
 from apps.catalog.selectors import phase_of, published_version, response_cards
 from apps.relationships.models import Relationship, RelationshipStatus
 from common.exceptions import ApiError, Conflict
+
+logger = logging.getLogger("rorschach.app")
 
 MAX_LOCATION_MARKS = 12
 STALE = "وضعیت آزمون تغییر کرده است؛ صفحه را تازه کنید."
@@ -401,6 +405,99 @@ def run_analysis(session: AssessmentSession, actor=None) -> AssessmentAnalysis:
     if actor is not None:
         record(actor, AuditAction.ANALYSIS_GENERATED, "AssessmentSession", session.pk)
     return analysis
+
+
+# ---- machine coding ---------------------------------------------------------
+
+
+def autocode_session(
+    session: AssessmentSession, *, refresh: bool = False
+) -> list[AssessmentResponse]:
+    """
+    Fills every uncoded response of a finished protocol with a draft coding.
+
+    A draft keeps `coded_by` NULL, which is the signal the review screen reads:
+    a NULL coder means "machine draft, nobody has confirmed this". Saving from
+    the coding panel stamps the psychologist and the row stops being a draft.
+
+    A response a psychologist has already coded is never touched, `refresh` or
+    not — BR-06's spirit applied to coding: the machine may propose, it may not
+    overwrite a human. `refresh` only re-drafts the rows that are still drafts,
+    which is what you want after re-running detection with a better model.
+
+    Returns the rows it wrote, so the caller can say how many there were.
+    """
+    if session.status != SessionStatus.COMPLETED:
+        raise Conflict("کدگذاری خودکار پس از تکمیل آزمون ممکن است.")
+
+    responses = list(session.responses.filter(phase__kind=PhaseKind.RESPONSE).order_by("sequence"))
+    pending = [r for r in responses if r.coding is None or (refresh and r.coded_by_id is None)]
+    if not pending:
+        return []
+
+    contents = _detected_contents(session)
+    now = timezone.now()
+    written: list[AssessmentResponse] = []
+
+    for response in pending:
+        response.coding = suggest_coding(response, contents.get(str(response.id), []))
+        response.coded_by = None
+        response.coded_at = now
+        response.save(update_fields=["coding", "coded_by", "coded_at", "updated_at"])
+        written.append(response)
+
+    # A stored analysis counted the protocol as uncoded. Marking it stale rather
+    # than recomputing here keeps the arithmetic on one path: `ensure_analysis`
+    # recomputes anything that is not DONE, and the completion task scores the
+    # protocol itself right after drafting it.
+    AssessmentAnalysis.objects.filter(assessment=session, status=AnalysisStatus.DONE).update(
+        status=AnalysisStatus.PENDING
+    )
+    return written
+
+
+def ensure_autocoding(session: AssessmentSession) -> None:
+    """
+    The read-path guarantee, twin to `ensure_analysis`: a psychologist opening a
+    finished protocol finds drafts even if the Celery worker was down when the
+    examinee finished. Never fatal — an empty panel is a worse outcome than a
+    slow one, but a 500 is worse than both.
+    """
+    if session.status != SessionStatus.COMPLETED:
+        return
+    try:
+        autocode_session(session)
+    except Exception:
+        logger.exception("autocode failed for session %s", session.pk)
+
+
+def _detected_contents(session: AssessmentSession) -> dict[str, list[str]]:
+    """
+    Content codes per response id, from the hint layer.
+
+    Detection is cached, so the relay is called once per protocol however often
+    drafting runs. A relay that is down or unconfigured degrades to the lexicon
+    inside `detect_content_words`; a hard failure here degrades to no content at
+    all, because a draft missing its content column still beats no draft.
+    """
+    try:
+        detection = detect_content_words(session)
+    except Exception:
+        logger.exception("content detection failed while drafting session %s", session.pk)
+        return {}
+
+    out: dict[str, list[str]] = {}
+    for item in detection.items or []:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("response_id") or "")
+        code = item.get("content")
+        if not key or not isinstance(code, str):
+            continue
+        codes = out.setdefault(key, [])
+        if code not in codes:
+            codes.append(code)
+    return out
 
 
 # ---- AI assist: content words of the first round ----------------------------

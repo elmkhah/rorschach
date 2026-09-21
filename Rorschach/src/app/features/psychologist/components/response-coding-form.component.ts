@@ -37,6 +37,11 @@ const FLAGS: { field: FlagField; label: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-4 text-sm">
+      @if (draft()) {
+        <div class="alert alert-info alert-soft py-2 text-xs">
+          این کدها پیش‌نویس خودکارند و هنوز تأیید نشده‌اند. بازبینی کنید و ذخیره بزنید.
+        </div>
+      }
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <div class="mb-1.5 font-bold">محل (Location)</div>
@@ -117,7 +122,7 @@ const FLAGS: { field: FlagField; label: string }[] = [
           @if (saving()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          ذخیره‌ی کدگذاری
+          {{ draft() ? 'تأیید کدگذاری' : 'ذخیره‌ی کدگذاری' }}
         </button>
       </div>
     </div>
@@ -125,6 +130,8 @@ const FLAGS: { field: FlagField; label: string }[] = [
 })
 export class ResponseCodingFormComponent {
   readonly coding = input<ResponseCoding | null>(null);
+  /** The coding came from the machine and nobody has confirmed it yet. */
+  readonly draft = input(false);
   readonly saving = input(false);
   readonly save = output<ResponseCoding>();
 

@@ -85,6 +85,15 @@ export class AssessmentsApi {
     return this.http.put<AssessmentResponse>(`${this.base}/${sessionId}/responses/${responseId}/coding/`, coding);
   }
 
+  /**
+   * Rebuilds the machine drafts. Drafting already runs on completion and on
+   * opening the review, so this is for the case those miss: detection ran
+   * without a relay key and the coder wants the drafts made again.
+   */
+  autoCode(sessionId: string, refresh = false): Observable<AssessmentResponse[]> {
+    return this.http.post<AssessmentResponse[]>(`${this.base}/${sessionId}/auto-code/`, { refresh });
+  }
+
   analyze(sessionId: string): Observable<AssessmentAnalysis> {
     return this.http.post<AssessmentAnalysis>(`${this.base}/${sessionId}/analysis/`, {});
   }

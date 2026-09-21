@@ -74,11 +74,17 @@ const OPEN = ['CREATED', 'IN_PROGRESS', 'PAUSED'];
         </div>
       </div>
       <div class="relative hidden min-h-52 md:block">
+        <!--
+          The illustration is square line art on a transparent ground, so it
+          needs both a light panel to read against this dark hero and a contain
+          fit to keep the sprout above the head from being cropped away.
+        -->
         <app-image-slot
-          class="absolute inset-3 rounded-[1.25rem]"
+          class="bg-base-100/95 absolute inset-3 rounded-[1.25rem] p-3"
           [src]="img.patientDashboard.src"
           [hint]="img.patientDashboard.hint"
-          [dark]="true"
+          alt="تصویرسازی رشد ذهن"
+          fit="contain"
         />
       </div>
     </div>

@@ -215,6 +215,7 @@ class SessionDetailFullView(APIView):
                 "AssessmentSession",
                 session.pk,
             )
+        services.ensure_autocoding(session)
         analysis = services.ensure_analysis(session)
         report = AssessmentReport.objects.filter(assessment=session).first()
         context = {"request": request}
@@ -280,6 +281,27 @@ class ContentWordsView(APIView):
             session, actor=request.user, refresh=bool(body.get("refresh"))
         )
         return Response(ContentDetectionSerializer(detection).data)
+
+
+class AutoCodeView(APIView):
+    """
+    `POST /assessments/sessions/{id}/auto-code/` — (re)draft the coding.
+
+    Drafting already happens on completion and again when the review screen is
+    opened, so this exists for the one case those two do not cover: detection
+    ran without a relay key, or with a worse model, and the coder wants the
+    drafts rebuilt. Rows a psychologist has confirmed are left alone.
+    """
+
+    permission_classes = [IsPsychologistOrAdmin]
+    throttle_scope = "write"
+
+    @extend_schema(request=None, responses=AssessmentResponseSerializer(many=True))
+    def post(self, request, pk):
+        session = readable_session(request.user, pk)
+        body = request.data if isinstance(request.data, dict) else {}
+        written = services.autocode_session(session, refresh=bool(body.get("refresh")))
+        return Response(AssessmentResponseSerializer(written, many=True).data)
 
 
 class AnalysisView(APIView):

@@ -14,7 +14,7 @@ import { LocationMarkerComponent } from '@shared/ui/location-marker.component';
 import { StatusBadgeComponent } from '@shared/ui/status-badge.component';
 import { ResponseCodingFormComponent } from '../components/response-coding-form.component';
 
-type Tab = 'protocol' | 'coding' | 'variables' | 'interpretation';
+type Tab = 'protocol' | 'coding' | 'variables';
 
 const DOMAINS: { key: RpasDomain; label: string }[] = [
   { key: 'ADMINISTRATION', label: 'اجرا و اعتبار پروتکل' },
@@ -140,10 +140,14 @@ const DOMAINS: { key: RpasDomain; label: string }[] = [
 
         @case ('coding') {
           <div class="glass-card mb-4 flex flex-wrap items-center gap-4 rounded-box p-4 text-sm">
-            <span class="font-bold">{{ codedCount() | faNumber }} از {{ responses().length | faNumber }} پاسخ کدگذاری شده</span>
-            <progress class="progress w-48" [value]="codedCount()" [max]="responses().length || 1"></progress>
+            <span class="font-bold">{{ confirmedCount() | faNumber }} از {{ responses().length | faNumber }} پاسخ تأیید شده</span>
+            <progress class="progress w-48" [value]="confirmedCount()" [max]="responses().length || 1"></progress>
+            @if (draftCount()) {
+              <span class="badge badge-info badge-soft badge-sm">{{ draftCount() | faNumber }} پیش‌نویس خودکار در انتظار بازبینی</span>
+            }
             <span class="text-base-content/60 text-xs">
-              کدگذاری بر اساس دستورالعمل و جداول رسمی R-PAS (کیفیت فرم و پاسخ‌های رایج) انجام شود.
+              پیش‌نویس‌ها از محل انتخابی و دلیل‌های مراجع ساخته شده‌اند. کیفیت فرم و پاسخ رایج را
+              خودتان از جداول رسمی R-PAS تعیین کنید.
             </span>
           </div>
           @for (r of responses(); track r.id) {
@@ -154,6 +158,9 @@ const DOMAINS: { key: RpasDomain; label: string }[] = [
                 <span class="min-w-0 flex-1 truncate">{{ r.response_text }}</span>
                 @if (r.coding) {
                   <code class="hidden text-xs sm:inline" dir="ltr">{{ code(r.coding) }}</code>
+                  @if (!r.coded_by) {
+                    <span class="badge badge-info badge-soft badge-sm whitespace-nowrap">پیش‌نویس</span>
+                  }
                 } @else {
                   <span class="badge badge-warning badge-soft badge-sm">کدگذاری نشده</span>
                 }
@@ -180,7 +187,12 @@ const DOMAINS: { key: RpasDomain; label: string }[] = [
                       </div>
                     }
                   </div>
-                  <app-response-coding-form [coding]="r.coding" [saving]="savingId() === r.id" (save)="saveCoding(r, $event)" />
+                  <app-response-coding-form
+                    [coding]="r.coding"
+                    [draft]="!!r.coding && !r.coded_by"
+                    [saving]="savingId() === r.id"
+                    (save)="saveCoding(r, $event)"
+                  />
                 </div>
               }
             </div>
@@ -189,7 +201,25 @@ const DOMAINS: { key: RpasDomain; label: string }[] = [
 
         @case ('variables') {
           @if (result(); as res) {
-            <div class="grid gap-4 lg:grid-cols-2">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <span class="text-base-content/60 text-sm">
+                الگوریتم: <span dir="ltr">{{ analysis()?.algorithm_version }}</span> ·
+                {{ analysis()?.generated_at | jalaliDate: 'datetime' }}
+              </span>
+              <button class="btn btn-outline btn-sm" [disabled]="analyzing()" (click)="reanalyze()">
+                @if (analyzing()) {
+                  <span class="loading loading-spinner loading-xs"></span>
+                }
+                محاسبه‌ی مجدد
+              </button>
+            </div>
+            <!--
+              One card per domain: the raw numbers and the reading of them sat in
+              two tabs, which made the coder hold a table in their head while
+              looking at the findings it produced. Same order as before, so a
+              domain's numbers are always directly above its findings.
+            -->
+            <div class="grid gap-4 xl:grid-cols-2">
               @for (dm of domains; track dm.key) {
                 <div class="glass-card rounded-box p-5">
                   <h2 class="mb-3 font-extrabold">{{ dm.label }}</h2>
@@ -208,53 +238,25 @@ const DOMAINS: { key: RpasDomain; label: string }[] = [
                       }
                     </tbody>
                   </table>
-                </div>
-              }
-            </div>
-          } @else {
-            <div class="glass-card rounded-box"><app-empty-state icon="activity" title="تحلیل هنوز آماده نشده است" /></div>
-          }
-        }
 
-        @case ('interpretation') {
-          @if (result(); as res) {
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <span class="text-base-content/60 text-sm">
-                الگوریتم: <span dir="ltr">{{ analysis()?.algorithm_version }}</span> ·
-                {{ analysis()?.generated_at | jalaliDate: 'datetime' }}
-              </span>
-              <button class="btn btn-outline btn-sm" [disabled]="analyzing()" (click)="reanalyze()">
-                @if (analyzing()) {
-                  <span class="loading loading-spinner loading-xs"></span>
-                }
-                محاسبه‌ی مجدد
-              </button>
-            </div>
-            <div class="bg-accent text-accent-content mb-4 space-y-1 rounded-box p-5 text-sm leading-7">
-              <div class="font-extrabold">تفسیر غیرقطعی</div>
-              @for (c of res.caveats; track c) {
-                <div class="flex gap-2"><app-icon name="info" [size]="16" class="mt-1.5 shrink-0" /> {{ c }}</div>
-              }
-            </div>
-            <div class="space-y-3">
-              @for (dm of domains; track dm.key) {
-                <div class="glass-card rounded-box p-5">
-                  <h2 class="mb-2 font-extrabold">{{ dm.label }}</h2>
-                  @for (f of findingsOf(dm.key); track f.text) {
-                    <div class="border-base-content/10 border-t py-3 first:border-t-0">
-                      <p class="leading-7">{{ f.text }}</p>
-                      <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span class="badge badge-sm" [class.badge-secondary]="f.confidence === 'MODERATE'">
-                          {{ f.confidence === 'MODERATE' ? 'اطمینان متوسط' : 'اطمینان پایین' }}
-                        </span>
-                        @for (b of f.basis; track b) {
-                          <span class="badge badge-ghost badge-sm" dir="ltr">{{ b }}</span>
-                        }
+                  <div class="border-base-content/10 mt-4 border-t pt-3">
+                    <div class="text-base-content/50 mb-1 text-xs font-bold">یافته‌های غیرقطعی</div>
+                    @for (f of findingsOf(dm.key); track f.text) {
+                      <div class="border-base-content/10 border-t py-3 first:border-t-0">
+                        <p class="text-sm leading-7">{{ f.text }}</p>
+                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span class="badge badge-sm" [class.badge-secondary]="f.confidence === 'MODERATE'">
+                            {{ f.confidence === 'MODERATE' ? 'اطمینان متوسط' : 'اطمینان پایین' }}
+                          </span>
+                          @for (b of f.basis; track b) {
+                            <span class="badge badge-ghost badge-sm" dir="ltr">{{ b }}</span>
+                          }
+                        </div>
                       </div>
-                    </div>
-                  } @empty {
-                    <p class="text-base-content/60 text-sm">بر اساس محاسبات خام، یافته‌ی قابل‌توجهی در این حوزه دیده نشد.</p>
-                  }
+                    } @empty {
+                      <p class="text-base-content/60 text-sm">بر اساس محاسبات خام، یافته‌ی قابل‌توجهی در این حوزه دیده نشد.</p>
+                    }
+                  </div>
                 </div>
               }
             </div>
@@ -275,8 +277,7 @@ export class SessionReviewPage {
   protected readonly tabs: { id: Tab; label: string }[] = [
     { id: 'protocol', label: 'پروتکل و روشن‌سازی' },
     { id: 'coding', label: 'کدگذاری R-PAS' },
-    { id: 'variables', label: 'متغیرهای محاسبه‌شده' },
-    { id: 'interpretation', label: 'تفسیر غیرقطعی' },
+    { id: 'variables', label: 'متغیرها' },
   ];
   protected readonly domains = DOMAINS;
   protected readonly code = codeString;
@@ -293,7 +294,13 @@ export class SessionReviewPage {
   protected readonly responses = linkedSignal(() => this.detail.value()?.responses ?? []);
   protected readonly analysis = linkedSignal(() => this.detail.value()?.analysis ?? null);
   protected readonly result = computed(() => this.analysis()?.calculated_data ?? null);
-  protected readonly codedCount = computed(() => this.responses().filter((r) => r.coding).length);
+  /**
+   * Only a coding somebody signed counts as done: a machine draft fills the
+   * panel but leaves `coded_by` null, and the progress bar must not claim a
+   * protocol is coded when nobody has read it yet.
+   */
+  protected readonly confirmedCount = computed(() => this.responses().filter((r) => r.coded_by).length);
+  protected readonly draftCount = computed(() => this.responses().filter((r) => r.coding && !r.coded_by).length);
 
   protected cardImage(cardNumber: number): string {
     return this.detail.value()?.cards.find((c) => c.card_number === cardNumber)?.image_url ?? '';

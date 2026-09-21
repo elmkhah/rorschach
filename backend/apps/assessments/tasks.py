@@ -20,13 +20,16 @@ logger = logging.getLogger("rorschach.app")
 
 @shared_task(name="assessments.generate_analysis")
 def generate_analysis(session_id: str) -> None:
-    from apps.assessments.services import run_analysis
+    from apps.assessments.services import ensure_autocoding, run_analysis
 
     session = AssessmentSession.objects.filter(pk=session_id).first()
     if session is None:
         logger.warning("generate_analysis: session %s no longer exists", session_id)
         return
     try:
+        # Drafting first: the analysis counts codes, so a protocol scored
+        # before its drafts exist would report an uncoded protocol.
+        ensure_autocoding(session)
         run_analysis(session)
     except Exception:
         AssessmentAnalysis.objects.filter(assessment_id=session_id).update(

@@ -27,5 +27,6 @@ urlpatterns = [
         views.ContentWordsView.as_view(),
         name="session-content-words",
     ),
+    path(f"{base}/<uuid:pk>/auto-code/", views.AutoCodeView.as_view(), name="session-auto-code"),
     path(f"{base}/<uuid:pk>/analysis/", views.AnalysisView.as_view(), name="session-analysis"),
 ]

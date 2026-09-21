@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "documentation/README.md",
+                "file": "documentation/11-backend-notes.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "11-backend-notes"
             }
           }
         ]
@@ -188,8 +188,10 @@
       "bases:Create new base": false
     }
   },
-  "active": "8cbed3c899a76c33",
+  "active": "67cea3dea4d8019e",
   "lastOpenFiles": [
+    "documentation/13-traceability.md",
+    "documentation/README.md",
     "documentation/11-ai-content-words.md",
     "documentation/10-assessment-rpas.md",
     "documentation/09-rorschach-analysis.md",
@@ -202,7 +204,6 @@
     "documentation/02-architecture.md",
     "documentation/01-requirements.md",
     "documentation/00-overview.md",
-    "documentation/README.md",
     "documentation/11-traceability.md",
     "documentation/12-testing-and-quality.md",
     "documentation/11-backend-notes.md",
@@ -222,7 +223,6 @@
     "docs/03-data-model-er.md.tmp.11732.36394aee08b6",
     "docs/00-overview.md.tmp.11732.f7b64a849609",
     "docs/00-index.md",
-    "docs/05-sequence-diagrams.md",
     "Untitled"
   ]
 }

@@ -12,7 +12,7 @@ export const IMAGES = {
   landingPsychologist: { src: '/images/landing/psychologists.jpg', hint: 'بخش «روان‌شناس هستید؟» — حدود ۸۰۰×۹۰۰' },
   authLogin: { src: '/images/auth/login.webp', hint: 'کنار فرم ورود — عمودی، حدود ۹۰۰×۱۱۰۰' },
   authRegister: { src: '/images/auth/register.jpg', hint: 'کنار فرم ثبت‌نام — عمودی، حدود ۹۰۰×۱۱۰۰' },
-  patientDashboard: { src: '/images/dashboard/patient.jpg', hint: 'بنر داشبورد مراجع — حدود ۶۰۰×۴۰۰' },
+  patientDashboard: { src: '/images/dashboard/banner.webp', hint: 'بنر داشبورد مراجع — تصویرسازی مربعی با پس‌زمینه‌ی شفاف، حدود ۱۵۰۰×۱۴۰۰' },
 } as const satisfies Record<string, ImageSlot>;
 
 /** Psychologist photos (mock data): /images/avatars/psychologist-{1..5}.webp — square, 400×400. */
