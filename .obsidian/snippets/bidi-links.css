@@ -1,0 +1,7 @@
+/* Inside Persian (RTL) text, a link such as [[01-requirements]] is reordered by
+   the bidi algorithm and shows as "requirements ... 01-". Isolating each link and
+   letting its own first letter pick the direction keeps the name in one piece. */
+.internal-link,
+.external-link {
+  unicode-bidi: plaintext;
+}

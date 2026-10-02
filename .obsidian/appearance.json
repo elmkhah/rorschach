@@ -1,3 +1,6 @@
 {
-  "textFontFamily": "Yekan Bakh"
+  "textFontFamily": "Yekan Bakh",
+  "enabledCssSnippets": [
+    "bidi-links"
+  ]
 }
